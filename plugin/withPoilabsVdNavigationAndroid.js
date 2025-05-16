@@ -19,7 +19,6 @@ const ANDROID_PERMISSIONS = [
   "android.permission.ACCESS_NETWORK_STATE",
   "android.permission.ACCESS_FINE_LOCATION",
   "android.permission.ACCESS_COARSE_LOCATION",
-  "android.permission.ACCESS_BACKGROUND_LOCATION",
 ];
 
 // Android Manifest izinlerini ekleyen fonksiyon
@@ -48,10 +47,10 @@ function withPoilabsGradle(config, { jitpackToken }) {
 
     if (!buildGradle.includes("jitpack.io")) {
       const jitpackRepo = `
-          maven {
-              url "https://jitpack.io"
-              credentials { username = '${jitpackToken}' }
-          }`;
+        maven {
+            url = "https://jitpack.io"
+            credentials { username = '${jitpackToken}' }
+        }`;
 
       // Repositories bloğunu bul ve jitpack'i ekle
       mod.modResults.contents = buildGradle.replace(
@@ -63,26 +62,94 @@ function withPoilabsGradle(config, { jitpackToken }) {
     return mod;
   });
 
+  // Gradle properties - Jetifier için
+  config = withDangerousMod(config, [
+    "android",
+    async (modConfig) => {
+      const root = modConfig.modRequest.projectRoot;
+      const gradlePropertiesPath = path.join(root, "android/gradle.properties");
+      
+      if (fs.existsSync(gradlePropertiesPath)) {
+        let gradleProperties = fs.readFileSync(gradlePropertiesPath, "utf8");
+        
+        // android.enableJetifier=true ekle
+        if (!gradleProperties.includes("android.enableJetifier=true")) {
+          gradleProperties += "\n# Enable jetifier for Poilabs VD Navigation SDK compatibility\n";
+          gradleProperties += "android.enableJetifier=true\n";
+          fs.writeFileSync(gradlePropertiesPath, gradleProperties);
+        }
+      }
+      
+      return modConfig;
+    }
+  ]);
+
   // App seviyesi build.gradle
   config = withAppBuildGradle(config, (mod) => {
     const appBuildGradle = mod.modResults.contents;
+    let updatedBuildGradle = appBuildGradle;
 
-    if (
-      !appBuildGradle.includes("com.github.poiteam:Android-VD-Navigation-SDK")
-    ) {
-      const dependencyLine = `    implementation 'com.github.poiteam:Android-VD-Navigation-SDK:7.0.5'`;
+    // Android Support ve AndroidX çakışmalarını önlemek için configuration ekle
+    if (!updatedBuildGradle.includes("resolutionStrategy")) {
+      const configBlock = `
+    configurations.all {
+        resolutionStrategy {
+            force 'androidx.core:core:1.13.1'
+            force 'androidx.media:media:1.0.0'
+        }
+    }`;
+
+      // Android bloğuna configurasyon ekle
+      updatedBuildGradle = updatedBuildGradle.replace(
+        /android\s*{/,
+        `android {\n${configBlock}`
+      );
+    }
+
+    // Poilabs SDK bağımlılığını ekle
+    if (!updatedBuildGradle.includes("com.github.poiteam:Android-VD-Navigation-SDK")) {
+      const dependencyLine = `    implementation ('com.github.poiteam:Android-VD-Navigation-SDK:7.0.5') {
+        exclude group: 'com.android.support'
+    }
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'androidx.core:core:1.13.1'
+    implementation 'androidx.media:media:1.0.0'`;
 
       // Dependencies bloğunu bul ve implementasyonu ekle
-      mod.modResults.contents = appBuildGradle.replace(
+      updatedBuildGradle = updatedBuildGradle.replace(
         /dependencies\s*{/,
         `dependencies {\n${dependencyLine}`
       );
     }
 
+    mod.modResults.contents = updatedBuildGradle;
     return mod;
   });
 
   return config;
+}
+
+function withPoilabsGradleProperties(config) {
+  return withDangerousMod(config, [
+    "android",
+    async (modConfig) => {
+      const root = modConfig.modRequest.projectRoot;
+      const gradlePropertiesPath = path.join(root, "android/gradle.properties");
+      
+      if (fs.existsSync(gradlePropertiesPath)) {
+        let gradleProperties = fs.readFileSync(gradlePropertiesPath, "utf8");
+        
+        // android.enableJetifier=true ekle
+        if (!gradleProperties.includes("android.enableJetifier=true")) {
+          gradleProperties += "\n# Enable jetifier for Poilabs VD Navigation SDK compatibility\n";
+          gradleProperties += "android.enableJetifier=true\n";
+          fs.writeFileSync(gradlePropertiesPath, gradleProperties);
+        }
+      }
+      
+      return modConfig;
+    }
+  ]);
 }
 
 // Native modülleri ekleyen fonksiyon
@@ -195,6 +262,7 @@ function withPoilabsVdNavigationAndroid(config, props) {
   config = withPoilabsManifest(config);
   config = withPoilabsGradle(config, props);
   config = withPoilabsNativeModules(config);
+  config = withPoilabsGradleProperties(config);
   config = withPoilabsPackage(config);
   config = withPoilabsProguard(config);
   return config;
