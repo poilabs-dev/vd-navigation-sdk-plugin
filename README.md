@@ -55,6 +55,16 @@ Add the plugin to your `app.json` or `app.config.js`:
 }
 ```
 
+⚠️ Known Issue: JitPack Authentication
+When running expo prebuild, the plugin attempts to configure JitPack with authentication, but Expo's build process may sometimes override this change. If you encounter dependency downloading issues from JitPack, please check your android/build.gradle file.
+If the file contains:
+gradlemaven { url 'https://www.jitpack.io' }
+Replace it with:
+gradlemaven {
+    url = "https://jitpack.io"
+    credentials { username = 'YOUR_JITPACK_TOKEN' }
+}
+
 Then run the prebuild command:
 
 ```bash
