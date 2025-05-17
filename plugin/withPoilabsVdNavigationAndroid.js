@@ -2,13 +2,10 @@ const {
   withAndroidManifest,
   withDangerousMod,
   withMainApplication,
-  withProjectBuildGradle,
-  withAppBuildGradle,
 } = require("@expo/config-plugins");
 const fs = require("fs");
 const path = require("path");
 
-// Android izinleri
 const ANDROID_PERMISSIONS = [
   "android.permission.INTERNET",
   "android.permission.BLUETOOTH",
@@ -25,8 +22,6 @@ const ANDROID_PERMISSIONS = [
 function withPoilabsManifest(config) {
   return withAndroidManifest(config, (mod) => {
     const { manifest } = mod.modResults;
-
-    // İzinlerin eklenmesi
     const permissions = manifest["uses-permission"] || [];
     ANDROID_PERMISSIONS.forEach((permission) => {
       if (!permissions.some((p) => p.$["android:name"] === permission)) {
@@ -34,235 +29,166 @@ function withPoilabsManifest(config) {
       }
     });
     manifest["uses-permission"] = permissions;
-
     return mod;
   });
 }
 
-// JitPack ve dependencies ekleme
 function withPoilabsGradle(config, { jitpackToken }) {
-  // Proje seviyesi build.gradle
-  config = withProjectBuildGradle(config, (mod) => {
-    const buildGradle = mod.modResults.contents;
+  return withDangerousMod(config, [
+    "android",
+    async (modConfig) => {
+      const root = modConfig.modRequest.projectRoot;
+      const projectGradle = path.join(root, "android/build.gradle");
+      let content = fs.readFileSync(projectGradle, "utf8");
 
-    if (!buildGradle.includes("jitpack.io")) {
-      const jitpackRepo = `
-        maven {
-            url = "https://jitpack.io"
+      // JitPack durumlarını kontrol et
+      const hasJitpackWithCredentials = /url\s+['"]https?:\/\/jitpack\.io['"][\s\S]*credentials\s*\{\s*username\s*=/.test(content);
+      const hasPlainJitpack = /url\s+['"]https?:\/\/(www\.)?jitpack\.io['"]/.test(content);
+
+      if (hasJitpackWithCredentials) {
+        // Zaten credentials ile tanımlı, hiçbir şey yapma
+      } else if (hasPlainJitpack) {
+        // Plain JitPack bloğunu credential'lı blokla güncelle
+        content = content.replace(
+          /maven\s*\{\s*url\s+['"][^']*jitpack\.io['"][\s\S]*?\}/g,
+          `maven {
+            url "https://jitpack.io"
             credentials { username = '${jitpackToken}' }
+          }`
+        );
+      } else {
+        // JitPack yoksa google() ve mavenCentral() ardından ekle
+        content = content.replace(
+          /(allprojects\s*\{[\s\S]*?repositories\s*\{)([\s\S]*?)(\})/, // capture the opening block
+          (_, start, repos, end) => {
+            const repoBlock = `
+        maven {
+          url "https://jitpack.io"
+          credentials { username = '${jitpackToken}' }
         }`;
-
-      // Repositories bloğunu bul ve jitpack'i ekle
-      mod.modResults.contents = buildGradle.replace(
-        /allprojects\s*{\s*repositories\s*{/,
-        `allprojects {\n    repositories {\n        ${jitpackRepo}`
-      );
-    }
-
-    return mod;
-  });
-
-  // Gradle properties - Jetifier için
-  config = withDangerousMod(config, [
-    "android",
-    async (modConfig) => {
-      const root = modConfig.modRequest.projectRoot;
-      const gradlePropertiesPath = path.join(root, "android/gradle.properties");
-      
-      if (fs.existsSync(gradlePropertiesPath)) {
-        let gradleProperties = fs.readFileSync(gradlePropertiesPath, "utf8");
-        
-        // android.enableJetifier=true ekle
-        if (!gradleProperties.includes("android.enableJetifier=true")) {
-          gradleProperties += "\n# Enable jetifier for Poilabs VD Navigation SDK compatibility\n";
-          gradleProperties += "android.enableJetifier=true\n";
-          fs.writeFileSync(gradlePropertiesPath, gradleProperties);
-        }
-      }
-      
-      return modConfig;
-    }
-  ]);
-
-  // App seviyesi build.gradle
-  config = withAppBuildGradle(config, (mod) => {
-    const appBuildGradle = mod.modResults.contents;
-    let updatedBuildGradle = appBuildGradle;
-
-    // Android Support ve AndroidX çakışmalarını önlemek için configuration ekle
-    if (!updatedBuildGradle.includes("resolutionStrategy")) {
-      const configBlock = `
-    configurations.all {
-        resolutionStrategy {
-            force 'androidx.core:core:1.13.1'
-            force 'androidx.media:media:1.0.0'
-        }
-    }`;
-
-      // Android bloğuna configurasyon ekle
-      updatedBuildGradle = updatedBuildGradle.replace(
-        /android\s*{/,
-        `android {\n${configBlock}`
-      );
-    }
-
-    // Poilabs SDK bağımlılığını ekle
-    if (!updatedBuildGradle.includes("com.github.poiteam:Android-VD-Navigation-SDK")) {
-      const dependencyLine = `    implementation ('com.github.poiteam:Android-VD-Navigation-SDK:7.0.5') {
-        exclude group: 'com.android.support'
-    }
-    implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'androidx.core:core:1.13.1'
-    implementation 'androidx.media:media:1.0.0'`;
-
-      // Dependencies bloğunu bul ve implementasyonu ekle
-      updatedBuildGradle = updatedBuildGradle.replace(
-        /dependencies\s*{/,
-        `dependencies {\n${dependencyLine}`
-      );
-    }
-
-    mod.modResults.contents = updatedBuildGradle;
-    return mod;
-  });
-
-  return config;
-}
-
-function withPoilabsGradleProperties(config) {
-  return withDangerousMod(config, [
-    "android",
-    async (modConfig) => {
-      const root = modConfig.modRequest.projectRoot;
-      const gradlePropertiesPath = path.join(root, "android/gradle.properties");
-      
-      if (fs.existsSync(gradlePropertiesPath)) {
-        let gradleProperties = fs.readFileSync(gradlePropertiesPath, "utf8");
-        
-        // android.enableJetifier=true ekle
-        if (!gradleProperties.includes("android.enableJetifier=true")) {
-          gradleProperties += "\n# Enable jetifier for Poilabs VD Navigation SDK compatibility\n";
-          gradleProperties += "android.enableJetifier=true\n";
-          fs.writeFileSync(gradlePropertiesPath, gradleProperties);
-        }
-      }
-      
-      return modConfig;
-    }
-  ]);
-}
-
-// Native modülleri ekleyen fonksiyon
-function withPoilabsNativeModules(config) {
-  return withDangerousMod(config, [
-    "android",
-    async (modConfig) => {
-      const root = modConfig.modRequest.projectRoot;
-      const pkgName =
-        config.android?.package || config.android?.packageName || config.slug;
-
-      if (!pkgName) {
-        throw new Error("No Android package name found in app.json");
+            return `${start}${repos}${repoBlock}${end}`;
+          }
+        );
       }
 
-      const pkgPath = pkgName.replace(/\./g, "/");
-      const dest = path.join(root, "android/app/src/main/java", pkgPath);
+      fs.writeFileSync(projectGradle, content, "utf8");
 
-      if (!fs.existsSync(dest)) {
-        fs.mkdirSync(dest, { recursive: true });
+      // Gradle properties: AndroidX & Jetifier
+      const propsPath = path.join(root, "android/gradle.properties");
+      if (fs.existsSync(propsPath)) {
+        let props = fs.readFileSync(propsPath, "utf8");
+        const toAdd = [];
+        if (!/android\.useAndroidX=true/.test(props)) toAdd.push("android.useAndroidX=true");
+        if (!/android\.enableJetifier=true/.test(props)) toAdd.push("android.enableJetifier=true");
+        if (toAdd.length) {
+          props += `\n# Poilabs SDK için AndroidX & Jetifier` + toAdd.map(v => `\n${v}`).join("");
+          fs.writeFileSync(propsPath, props, "utf8");
+        }
       }
 
-      const sourceDir = path.join(
-        root,
-        "node_modules/@poilabs-dev/vd-navigation-sdk-plugin/src/android"
-      );
+      // App-level build.gradle: bağımlılıklar ve multidex
+      const appGradle = path.join(root, "android/app/build.gradle");
+      if (fs.existsSync(appGradle)) {
+        let text = fs.readFileSync(appGradle, "utf8");
 
-      const moduleFiles = ["PoilabsVdNavigationModule.kt", "PoilabsPackage.kt"];
-
-      moduleFiles.forEach((file) => {
-        const sourcePath = path.join(sourceDir, file);
-        const destPath = path.join(dest, file);
-
-        if (fs.existsSync(sourcePath)) {
-          let content = fs.readFileSync(sourcePath, "utf8");
-          content = content.replace(/__PACKAGE_NAME__/g, pkgName);
-          fs.writeFileSync(destPath, content, "utf8");
-        } else {
-          console.warn(`Source file not found: ${sourcePath}`);
+        // resolutionStrategy
+        if (!/resolutionStrategy/.test(text)) {
+          text = text.replace(
+            /android\s*\{/, 
+            `android {\n    configurations.all {\n      resolutionStrategy {\n        force 'androidx.core:core:1.13.1'\n        force 'androidx.media:media:1.0.0'\n      }\n    }`
+          );
         }
-      });
+
+        // dependencies bloğu: Poilabs SDK ve multidex
+        text = text.replace(
+          /dependencies\s*\{/, 
+          `dependencies {\n    implementation ('com.github.poiteam:Android-VD-Navigation-SDK:7.0.5') { exclude group: 'com.android.support' }\n    implementation 'androidx.appcompat:appcompat:1.6.1'\n    implementation 'androidx.core:core:1.13.1'\n    implementation 'androidx.media:media:1.0.0'\n    implementation 'androidx.multidex:multidex:2.0.1'`
+        );
+
+        // defaultConfig: multidexEnabled
+        if (!/multiDexEnabled/.test(text)) {
+          text = text.replace(
+            /defaultConfig\s*\{/, `defaultConfig {\n        multiDexEnabled true`
+          );
+        }
+
+        fs.writeFileSync(appGradle, text, "utf8");
+      }
 
       return modConfig;
     },
   ]);
 }
 
-// MainApplication'a Poilabs Package'ı ekleme
+function withPoilabsNativeModules(config) {
+  return withDangerousMod(config, [
+    "android",
+    async (modConfig) => {
+      const root = modConfig.modRequest.projectRoot;
+      const pkgName = config.android?.package || config.android?.packageName || config.slug;
+      if (!pkgName) throw new Error("No Android package name found in app.json");
+      const destDir = path.join(root, "android/app/src/main/java", pkgName.replace(/\./g, "/"));
+      fs.mkdirSync(destDir, { recursive: true });
+      const sourceDir = path.join(root, "node_modules/@poilabs-dev/vd-navigation-sdk-plugin/src/android");
+      ["PoilabsVdNavigationModule.kt", "PoilabsPackage.kt"].forEach((file) => {
+        const src = path.join(sourceDir, file);
+        const dst = path.join(destDir, file);
+        if (fs.existsSync(src)) {
+          let content = fs.readFileSync(src, "utf8");
+          content = content.replace(/__PACKAGE_NAME__/g, pkgName);
+          fs.writeFileSync(dst, content, "utf8");
+        }
+      });
+      return modConfig;
+    },
+  ]);
+}
+
+// MainApplication'a Poilabs Package'ı ekle
 function withPoilabsPackage(config) {
   return withMainApplication(config, (mod) => {
-    const mainApplication = mod.modResults.contents;
-    const pkgName =
-      config.android?.package || config.android?.packageName || config.slug;
-
-    // Import ifadesi ekle
-    if (!mainApplication.includes(`import ${pkgName}.PoilabsPackage`)) {
-      mod.modResults.contents = mainApplication.replace(
+    const contents = mod.modResults.contents;
+    const pkgImport = `import ${config.android?.package || config.slug}.PoilabsPackage;`;
+    if (!contents.includes(pkgImport)) {
+      mod.modResults.contents = contents.replace(
         /import com.facebook.react.ReactApplication;/,
-        `import com.facebook.react.ReactApplication;\nimport ${pkgName}.PoilabsPackage;`
+        `import com.facebook.react.ReactApplication;\n${pkgImport}`
       );
     }
-
-    // getPackages methoduna package'ı ekle
-    if (!mainApplication.includes("new PoilabsPackage()")) {
+    if (!mod.modResults.contents.includes("new PoilabsPackage()")) {
       mod.modResults.contents = mod.modResults.contents.replace(
         /return packages;/,
-        `packages.add(new PoilabsPackage());\n      return packages;`
+        `  packages.add(new PoilabsPackage());\n    return packages;`
       );
     }
-
     return mod;
   });
 }
 
-// Proguard kurallarını ekleme
+// Proguard kuralları ekle
 function withPoilabsProguard(config) {
   return withDangerousMod(config, [
     "android",
     async (modConfig) => {
       const root = modConfig.modRequest.projectRoot;
       const proguardPath = path.join(root, "android/app/proguard-rules.pro");
-
       if (fs.existsSync(proguardPath)) {
-        let proguardContent = fs.readFileSync(proguardPath, "utf8");
-
-        const poilabsProguardRules = `
-  # Poilabs VD Navigation SDK Proguard Rules
-  -keep public interface com.poilabs.vd.nav.non.ui.jsonclient.ApiInterface
-  -keep public interface com.poilabs.vd.nav.non.ui.jsonclient.VDResponseListener
-  -keep class com.poilabs.vd.nav.non.ui.models.** { *; }
-  -keep class com.poilabs.vd.nav.non.ui.manager.VDCallbacks
-  -dontwarn com.poilabs.vd.nav.non.ui.Utils.**
-  `;
-
-        if (
-          !proguardContent.includes("Poilabs VD Navigation SDK Proguard Rules")
-        ) {
-          proguardContent += poilabsProguardRules;
-          fs.writeFileSync(proguardPath, proguardContent);
+        let rules = fs.readFileSync(proguardPath, "utf8");
+        const sdkRules = `\n# Poilabs VD Navigation SDK Proguard Rules\n-keep public interface com.poilabs.vd.nav.non.ui.jsonclient.ApiInterface\n-keep public interface com.poilabs.vd.nav.non.ui.jsonclient.VDResponseListener\n-keep class com.poilabs.vd.nav.non.ui.models.** { *; }\n-keep class com.poilabs.vd.nav.non.ui.manager.VDCallbacks\n-dontwarn com.poilabs.vd.nav.non.ui.Utils.**\n`;
+        if (!rules.includes("Poilabs VD Navigation SDK Proguard Rules")) {
+          fs.writeFileSync(proguardPath, rules + sdkRules, "utf8");
         }
       }
-
       return modConfig;
     },
   ]);
 }
 
-// Ana Android düzenlemesi fonksiyonu
+// Ana Android düzenlemesi oluştur
 function withPoilabsVdNavigationAndroid(config, props) {
   config = withPoilabsManifest(config);
   config = withPoilabsGradle(config, props);
   config = withPoilabsNativeModules(config);
-  config = withPoilabsGradleProperties(config);
   config = withPoilabsPackage(config);
   config = withPoilabsProguard(config);
   return config;
