@@ -2,196 +2,192 @@ package __PACKAGE_NAME__
 
 import android.content.Intent
 import com.facebook.react.bridge.*
-import com.facebook.react.modules.core.DeviceEventManagerModule
-import com.poilabs.vd.nav.non.ui.jsonclient.VDResponseListener
-import com.poilabs.vd.nav.non.ui.models.PLPStatus
-import com.poilabs.vd.nav.non.ui.models.PoiManager
 import com.getpoi.android_vd_nav_ui.view.PoiVdNavigationActivity
+import com.poilabs.vd.nav.non.ui.jsonclient.VDResponseListener
+import com.poilabs.vd.nav.non.ui.manager.PLPStatus
+import com.poilabs.vd.nav.non.ui.models.LocationCallback
+import com.poilabs.vd.nav.non.ui.models.PoiManager
 
 class PoilabsVdNavigationModule(reactContext: ReactApplicationContext) : 
-    ReactContextBaseJavaModule(reactContext), 
-    VDResponseListener {
+    ReactContextBaseJavaModule(reactContext) {
     
-    private val reactContext: ReactApplicationContext = reactContext
-    private var uniqueId: String = ""
-    private var locationChangeListener: Boolean = false
+    private var mApplicationId: String = ""
+    private var mApplicationSecretKey: String = ""
+    private var mUniqueId: String = ""
+    private var mLanguage: String = "en"
+    private var mTitle: String = ""
+    private var mConfigUrl: String? = null
+    private var mHasLocation: Boolean = false
+    private var mLastLatitude: Double = 0.0
+    private var mLastLongitude: Double = 0.0
+    private var mLastFloorLevel: Int? = null
+    private var mLocationPromise: Promise? = null
     
-    override fun getName(): String = "PoilabsVdNavigationModule"
+    override fun getName(): String {
+        return "PoilabsVdNavigationModule"
+    }
     
     @ReactMethod
-    fun startPoilabsVdNavigation(
-        applicationId: String,
-        applicationSecret: String,
-        uniqueId: String,
-        language: String,
-        title: String,
-        promise: Promise
-    ) {
+    fun initialize(applicationId: String, secretKey: String, uniqueId: String, 
+                   language: String, title: String, configUrl: String?, 
+                   promise: Promise) {
         try {
-            this.uniqueId = uniqueId
+            mApplicationId = applicationId
+            mApplicationSecretKey = secretKey
+            mUniqueId = uniqueId
+            mLanguage = language
+            mTitle = title
+            mConfigUrl = configUrl
             
-            PoiManager.init(
-                context = currentActivity!!,
-                appId = applicationId,
-                secret = applicationSecret,
-                language = language,
-                title = title,
-                vdResponseListener = this,
-                locationCallback = object : PoiManager.LocationCallback {
-                    override fun onLocation(latitude: Double, longitude: Double, floorLevel: Int?) {
-                        if (locationChangeListener) {
-                            val params = Arguments.createMap().apply {
-                                putDouble("latitude", latitude)
-                                putDouble("longitude", longitude)
-                                floorLevel?.let { putInt("floorLevel", it) }
-                            }
-                            sendEvent("PoilabsLocationChangeEvent", params)
+            val activity = currentActivity ?: run {
+                promise.reject("ACTIVITY_NULL", "Activity is null")
+                return
+            }
+            
+            if (mConfigUrl != null && mConfigUrl!!.isNotEmpty()) {
+                PoiManager.init(
+                    activity,
+                    mApplicationId,
+                    mApplicationSecretKey,
+                    mConfigUrl,
+                    mLanguage,
+                    mTitle,
+                    object : VDResponseListener {
+                        override fun onSuccess() {
+                            PoiManager.setUniqueId(mUniqueId)
+                            promise.resolve(true)
                         }
-                    }
-                    
-                    override fun onStatusChanged(status: PLPStatus) {
-                        val params = Arguments.createMap().apply {
-                            putString("status", status.toString())
+                        
+                        override fun onFail(throwable: Throwable?) {
+                            promise.reject("INIT_FAILED", throwable?.message, throwable)
                         }
-                        sendEvent("PoilabsStatusChangeEvent", params)
+                    },
+                    createLocationCallback()
+                )
+            } else {
+                PoiManager.init(
+                    activity,
+                    mApplicationId,
+                    mApplicationSecretKey,
+                    mLanguage,
+                    mTitle,
+                    object : VDResponseListener {
+                        override fun onSuccess() {
+                            PoiManager.setUniqueId(mUniqueId)
+                            promise.resolve(true)
+                        }
+                        
+                        override fun onFail(throwable: Throwable?) {
+                            promise.reject("INIT_FAILED", throwable?.message, throwable)
+                        }
+                    },
+                    createLocationCallback()
+                )
+            }
+        } catch (e: Exception) {
+            promise.reject("INIT_EXCEPTION", e.message, e)
+        }
+    }
+    
+    @ReactMethod
+    fun showPoilabsVdNavigation(promise: Promise) {
+        try {
+            val activity = currentActivity ?: run {
+                promise.reject("ACTIVITY_NULL", "Activity is null")
+                return
+            }
+            
+            if (mApplicationId.isEmpty() || mApplicationSecretKey.isEmpty()) {
+                promise.reject("NOT_INITIALIZED", "SDK has not been initialized")
+                return
+            }
+            
+            // Initialize if not already initialized
+            if (mConfigUrl != null && mConfigUrl!!.isNotEmpty()) {
+                PoiManager.init(
+                    activity,
+                    mApplicationId,
+                    mApplicationSecretKey,
+                    mConfigUrl,
+                    mLanguage,
+                    mTitle,
+                    object : VDResponseListener {
+                        override fun onSuccess() {
+                            PoiManager.setUniqueId(mUniqueId)
+                            val intent = Intent(reactApplicationContext, PoiVdNavigationActivity::class.java)
+                            activity.startActivity(intent)
+                            promise.resolve(true)
+                        }
+                        
+                        override fun onFail(throwable: Throwable?) {
+                            promise.reject("NAVIGATION_FAILED", throwable?.message, throwable)
+                        }
+                    },
+                    createLocationCallback()
+                )
+            } else {
+                PoiManager.init(
+                    activity,
+                    mApplicationId,
+                    mApplicationSecretKey,
+                    mLanguage,
+                    mTitle,
+                    object : VDResponseListener {
+                        override fun onSuccess() {
+                            PoiManager.setUniqueId(mUniqueId)
+                            val intent = Intent(reactApplicationContext, PoiVdNavigationActivity::class.java)
+                            activity.startActivity(intent)
+                            promise.resolve(true)
+                        }
+                        
+                        override fun onFail(throwable: Throwable?) {
+                            promise.reject("NAVIGATION_FAILED", throwable?.message, throwable)
+                        }
+                    },
+                    createLocationCallback()
+                )
+            }
+        } catch (e: Exception) {
+            promise.reject("NAVIGATION_EXCEPTION", e.message, e)
+        }
+    }
+    
+    @ReactMethod
+    fun getUserLocation(promise: Promise) {
+        if (mHasLocation) {
+            val location = Arguments.createMap().apply {
+                putDouble("latitude", mLastLatitude)
+                putDouble("longitude", mLastLongitude)
+                mLastFloorLevel?.let { putInt("floorLevel", it) } ?: putNull("floorLevel")
+            }
+            promise.resolve(location)
+        } else {
+            mLocationPromise = promise
+        }
+    }
+    
+    private fun createLocationCallback(): LocationCallback {
+        return object : LocationCallback {
+            override fun onLocation(latitude: Double, longitude: Double, floorLevel: Int?) {
+                mLastLatitude = latitude
+                mLastLongitude = longitude
+                mLastFloorLevel = floorLevel
+                mHasLocation = true
+                
+                mLocationPromise?.let { promise ->
+                    val location = Arguments.createMap().apply {
+                        putDouble("latitude", latitude)
+                        putDouble("longitude", longitude)
+                        floorLevel?.let { putInt("floorLevel", it) } ?: putNull("floorLevel")
                     }
+                    promise.resolve(location)
+                    mLocationPromise = null
                 }
-            )
+            }
             
-            promise.resolve(true)
-        } catch (e: Exception) {
-            promise.reject("START_ERROR", e.message)
+            override fun onStatusChanged(status: PLPStatus) {
+                // Optional status handling
+            }
         }
-    }
-    
-    @ReactMethod
-    fun startPoilabsVdNavigationWithCustomConfig(
-        configUrl: String,
-        applicationId: String,
-        applicationSecret: String,
-        uniqueId: String,
-        language: String,
-        title: String,
-        promise: Promise
-    ) {
-        try {
-            this.uniqueId = uniqueId
-            
-            PoiManager.init(
-                context = currentActivity!!,
-                configUrl = configUrl,
-                appId = applicationId,
-                secret = applicationSecret,
-                language = language,
-                title = title,
-                vdResponseListener = this,
-                locationCallback = object : PoiManager.LocationCallback {
-                    override fun onLocation(latitude: Double, longitude: Double, floorLevel: Int?) {
-                        if (locationChangeListener) {
-                            val params = Arguments.createMap().apply {
-                                putDouble("latitude", latitude)
-                                putDouble("longitude", longitude)
-                                floorLevel?.let { putInt("floorLevel", it) }
-                            }
-                            sendEvent("PoilabsLocationChangeEvent", params)
-                        }
-                    }
-                    
-                    override fun onStatusChanged(status: PLPStatus) {
-                        val params = Arguments.createMap().apply {
-                            putString("status", status.toString())
-                        }
-                        sendEvent("PoilabsStatusChangeEvent", params)
-                    }
-                }
-            )
-            
-            promise.resolve(true)
-        } catch (e: Exception) {
-            promise.reject("START_ERROR", e.message)
-        }
-    }
-    
-    @ReactMethod
-    fun showNavigationActivity(promise: Promise) {
-        try {
-            PoiManager.setUniqueId(uniqueId)
-            
-            val intent = Intent(reactContext, PoiVdNavigationActivity::class.java)
-            currentActivity?.startActivity(intent)
-            
-            promise.resolve(true)
-        } catch (e: Exception) {
-            promise.reject("NAVIGATION_ERROR", e.message)
-        }
-    }
-    
-    @ReactMethod
-    fun stopPoilabsVdNavigation(promise: Promise) {
-        try {
-            // SDK'yı durdur
-            promise.resolve(true)
-        } catch (e: Exception) {
-            promise.reject("STOP_ERROR", e.message)
-        }
-    }
-    
-    @ReactMethod
-    fun updateUniqueId(uniqueId: String, promise: Promise) {
-        try {
-            this.uniqueId = uniqueId
-            PoiManager.setUniqueId(uniqueId)
-            promise.resolve(true)
-        } catch (e: Exception) {
-            promise.reject("UPDATE_ID_ERROR", e.message)
-        }
-    }
-    
-    @ReactMethod
-    fun addLocationChangeListener() {
-        locationChangeListener = true
-    }
-    
-    @ReactMethod
-    fun removeLocationChangeListener() {
-        locationChangeListener = false
-    }
-    
-    override fun onSuccess() {
-        showNavigationActivity(object : Promise {
-            override fun resolve(value: Any?) {}
-            override fun reject(code: String?, message: String?) {}
-            override fun reject(code: String?, throwable: Throwable?) {}
-            override fun reject(code: String?, message: String?, throwable: Throwable?) {}
-            override fun reject(throwable: Throwable?) {}
-            override fun reject(throwable: Throwable?, userInfo: WritableMap?) {}
-            override fun reject(code: String?, userInfo: WritableMap) {}
-            override fun reject(code: String?, message: String?, userInfo: WritableMap) {}
-            override fun reject(code: String?, message: String?, throwable: Throwable?, userInfo: WritableMap?) {}
-            override fun reject(message: String) {}
-        })
-    }
-    
-    override fun onFail(throwable: Throwable?) {
-        val params = Arguments.createMap().apply {
-            putString("error", throwable?.message ?: "Unknown error")
-        }
-        sendEvent("PoilabsErrorEvent", params)
-    }
-    
-    private fun sendEvent(eventName: String, params: WritableMap) {
-        reactContext
-            .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-            .emit(eventName, params)
-    }
-    
-    @ReactMethod
-    fun addListener(eventName: String) {
-        // Required for RN built-in Event Emitter Calls
-    }
-    
-    @ReactMethod
-    fun removeListeners(count: Int) {
-        // Required for RN built-in Event Emitter Calls
     }
 }

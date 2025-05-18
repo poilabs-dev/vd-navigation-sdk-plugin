@@ -1,10 +1,10 @@
-const withPoilabsVdNavigationAndroid = require("./withPoilabsVdNavigationAndroid");
-const withPoilabsVdNavigationIOS = require("./withPoilabsVdNavigationIOS");
+const withPoilabsAndroid = require("./withPoilabsVdNavigationAndroid");
+const withPoilabsIOS = require("./withPoilabsVdNavigationIOS");
 
-function withPoilabsVdNavigation(config, props) {
-  config = withPoilabsVdNavigationAndroid(config, props);
-  config = withPoilabsVdNavigationIOS(config, props);
+function withPoilabsSDK(config, props) {
+  config = withPoilabsAndroid(config, props);
+  config = withPoilabsIOS(config);
   return config;
 }
 
-module.exports = withPoilabsVdNavigation;
+module.exports = withPoilabsSDK;
