@@ -1,4 +1,4 @@
-# @poilabs-dev/vd-navigation-sdk-plugin
+# Poilabs Visually Disabled Navigation SDK Plugin
 
 Official **Expo Config Plugin** for integrating the [Poilabs Visually Disabled Navigation SDK](https://www.poilabs.com/en/vd-navigation-sdk/) into Expo (prebuild) projects.
 
@@ -14,9 +14,9 @@ When used with `expo prebuild`, this plugin:
 - ✅ Adds Poilabs VD Navigation SDK dependency to `android/app/build.gradle`
 - ✅ Adds JitPack repository to `android/build.gradle`
 - ✅ Adds `pod 'PoilabsVdNavigation'` to the iOS Podfile
+- ✅ Adds `use_frameworks!` to the iOS Podfile
 - ✅ Adds `Info.plist` keys for Location and Bluetooth usage
-- ✅ Configures native modules for both Android and iOS
-- ✅ Creates bridging code for React Native integration
+- ✅ Creates necessary bridge files for iOS and Android
 
 ---
 
@@ -28,12 +28,6 @@ Install the plugin to your Expo project:
 npm install @poilabs-dev/vd-navigation-sdk-plugin
 # or
 yarn add @poilabs-dev/vd-navigation-sdk-plugin
-```
-
-Also install the required dependencies:
-
-```bash
-npx expo install expo-location expo-device
 ```
 
 ## ⚙️ Configuration
@@ -55,16 +49,6 @@ Add the plugin to your `app.json` or `app.config.js`:
 }
 ```
 
-⚠️ Known Issue: JitPack Authentication
-When running expo prebuild, the plugin attempts to configure JitPack with authentication, but Expo's build process may sometimes override this change. If you encounter dependency downloading issues from JitPack, please check your android/build.gradle file.
-If the file contains:
-gradlemaven { url 'https://www.jitpack.io' }
-Replace it with:
-gradlemaven {
-    url = "https://jitpack.io"
-    credentials { username = 'YOUR_JITPACK_TOKEN' }
-}
-
 Then run the prebuild command:
 
 ```bash
@@ -77,7 +61,24 @@ After running `expo prebuild`, you need to perform these additional steps:
 
 #### Android Setup
 
-1. Clean and rebuild your Android project:
+1. Open your project's `MainApplication.kt` file and add the following import:
+
+   ```kotlin
+   import com.anonymous.<APPNAME>.PoilabsPackage
+   ```
+
+2. Find the `getPackages()` method and add the PoilabsPackage:
+
+   ```kotlin
+   override fun getPackages(): List<ReactPackage> {
+      val packages = PackageList(this).packages
+      // add this line
+      packages.add(PoilabsPackage())
+      return packages
+    }
+   ```
+
+3. Clean and rebuild your Android project:
    ```bash
    cd android
    ./gradlew clean
@@ -87,13 +88,25 @@ After running `expo prebuild`, you need to perform these additional steps:
 
 #### iOS Setup
 
-1. Install Pods:
-   ```bash
-   cd ios
-   pod install --repo-update
-   cd ..
-   npx expo run:ios
-   ```
+For iOS, you need to ensure the plugin files are properly included in your Xcode project:
+
+1. Open your Xcode project
+2. In Xcode, verify that the created files are added to your project:
+   - `PoilabsVdNavigationManager.swift`
+   - `PoilabsNavigationBridge.h`
+   - `PoilabsNavigationBridge.m`
+   - `PoilabsModule/PoilabsVdNavigationModule.h`
+   - `PoilabsModule/PoilabsVdNavigationModule.m`
+
+3. If files are missing, you may need to manually add them from the iOS directory
+
+4. Ensure the Swift bridging header includes React and PoilabsVdNavigation
+
+Then build and run your iOS project:
+
+```bash
+npx expo run:ios
+```
 
 ## 🚀 Usage
 
@@ -101,12 +114,12 @@ After the prebuild process, you can use the SDK in your application:
 
 ```javascript
 import React, { useEffect, useState } from 'react';
-import { View, Text, Button, StyleSheet } from 'react-native';
-import { 
-  startPoilabsVdNavigation, 
-  stopPoilabsVdNavigation,
-  addLocationChangeListener,
-  removeLocationChangeListener
+import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import {
+  startPoilabsNavigation,
+  showPoilabsVdNavigation,
+  getUserLocation,
+  requestPermissions
 } from '@poilabs-dev/vd-navigation-sdk-plugin';
 
 export default function App() {
@@ -114,122 +127,144 @@ export default function App() {
   const [location, setLocation] = useState(null);
 
   useEffect(() => {
-    // Add location change listener
-    addLocationChangeListener((locationData) => {
-      setLocation(locationData);
-    });
+    async function initNavigation() {
+      try {
+        // Request permissions first
+        const hasPermissions = await requestPermissions();
+        if (!hasPermissions) {
+          setSdkStatus('Permissions not granted');
+          return;
+        }
 
-    // Clean up on unmount
-    return () => {
-      removeLocationChangeListener();
-      stopPoilabsVdNavigation();
-    };
+        // Initialize the SDK
+        const success = await startPoilabsNavigation({
+          applicationId: 'YOUR_APPLICATION_ID', // Get from Poilabs
+          applicationSecretKey: 'YOUR_APPLICATION_SECRET', // Get from Poilabs
+          uniqueId: 'USER_UNIQUE_ID', // A unique identifier for the user
+          language: 'en', // or 'tr' for Turkish
+        });
+
+        setSdkStatus(success ? 'Initialized ✅' : 'Initialization failed ❌');
+      } catch (error) {
+        setSdkStatus(`Error: ${error.message}`);
+      }
+    }
+
+    initNavigation();
   }, []);
 
-  const handleStartSDK = async () => {
+  const handleStartNavigation = async () => {
     try {
-      const success = await startPoilabsVdNavigation({
-        applicationId: 'YOUR_APPLICATION_ID', // Get from Poilabs
-        applicationSecret: 'YOUR_APPLICATION_SECRET', // Get from Poilabs
-        uniqueId: 'USER_UNIQUE_ID', // A unique identifier for the user
-        lang: 'en' // Optional language parameter (default is 'tr')
-      });
-
-      setSdkStatus(success ? 'Running ✅' : 'Failed to start ❌');
+      const success = await showPoilabsVdNavigation();
+      console.log('Navigation started:', success);
     } catch (error) {
-      setSdkStatus(`Error: ${error.message}`);
+      console.error('Navigation error:', error);
     }
   };
 
-  const handleStopSDK = async () => {
+  const handleGetLocation = async () => {
     try {
-      const success = await stopPoilabsVdNavigation();
-      setSdkStatus(success ? 'Stopped ⛔' : 'Failed to stop ❓');
+      const userLocation = await getUserLocation();
+      setLocation(userLocation);
     } catch (error) {
-      setSdkStatus(`Stop Error: ${error.message}`);
+      console.error('Get location error:', error);
     }
   };
 
   return (
-    
-      Poilabs VD Navigation
-      Status: {sdkStatus}
+    <View style={styles.container}>
+      <Text style={styles.status}>SDK Status: {sdkStatus}</Text>
       
       {location && (
-        
-          Latitude: {location.latitude}
-          Longitude: {location.longitude}
-          {location.floorLevel !== undefined && (
-            Floor Level: {location.floorLevel}
-          )}
-        
+        <View style={styles.locationBox}>
+          <Text>Latitude: {location.latitude}</Text>
+          <Text>Longitude: {location.longitude}</Text>
+          <Text>Floor Level: {location.floorLevel ?? 'Unknown'}</Text>
+        </View>
       )}
       
+      <TouchableOpacity style={styles.button} onPress={handleStartNavigation}>
+        <Text style={styles.buttonText}>Start Navigation</Text>
+      </TouchableOpacity>
       
-        
-        
-      
-    
+      <TouchableOpacity style={styles.button} onPress={handleGetLocation}>
+        <Text style={styles.buttonText}>Get Location</Text>
+      </TouchableOpacity>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
     padding: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
   },
   status: {
     fontSize: 16,
     marginBottom: 20,
   },
-  locationContainer: {
-    marginVertical: 20,
+  locationBox: {
     padding: 10,
-    backgroundColor: '#f0f0f0',
+    borderWidth: 1,
     borderRadius: 5,
+    marginBottom: 20,
     width: '100%',
   },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+  button: {
+    backgroundColor: '#007AFF',
+    padding: 15,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginVertical: 10,
     width: '100%',
-  }
+  },
+  buttonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
 });
 ```
 
 ## 📝 API Reference
 
-### `startPoilabsVdNavigation(config)`
+### `startPoilabsNavigation(config)`
 
-Starts the Poilabs VD Navigation SDK with the given configuration.
+Initializes the Poilabs VD Navigation SDK with the given configuration.
 
 #### Parameters
 
 - `config` (Object):
   - `applicationId` (String): The application ID provided by Poilabs
-  - `applicationSecret` (String): The application secret provided by Poilabs
+  - `applicationSecretKey` (String): The application secret provided by Poilabs
   - `uniqueId` (String): A unique identifier for the user
-  - `lang` (String, optional): The language for navigation UI (default: 'tr')
-  - `configUrl` (String, optional): Custom configuration URL
+  - `language` (String, optional): Language code (e.g. "en", "tr"). Defaults to "en"
+  - `title` (String, optional): Title to display on the first page
+  - `configUrl` (String, optional): Optional URL to redirect requests
 
 #### Returns
 
-- `Promise<boolean>`: Resolves to `true` if SDK was started successfully, `false` otherwise
+- `Promise<boolean>`: Resolves to `true` if SDK was initialized successfully, `false` otherwise
 
-### `stopPoilabsVdNavigation()`
+### `showPoilabsVdNavigation()`
 
-Stops the Poilabs VD Navigation SDK.
+Shows the Poilabs VD Navigation interface.
 
 #### Returns
 
-- `Promise<boolean>`: Resolves to `true` if SDK was stopped successfully, `false` otherwise
+- `Promise<boolean>`: Resolves to `true` if navigation started successfully, `false` otherwise
+
+### `getUserLocation()`
+
+Gets the current user location.
+
+#### Returns
+
+- `Promise<Object>`: Resolves to location object with the following properties:
+  - `latitude` (Number): Latitude coordinate
+  - `longitude` (Number): Longitude coordinate
+  - `floorLevel` (Number|null): Floor level (null if not available)
 
 ### `updateUniqueId(uniqueId)`
 
@@ -243,55 +278,7 @@ Updates the unique identifier in the SDK after initialization.
 
 - `Promise<boolean>`: Resolves to `true` if update was successful
 
-### `setCustomConfigUrl(url)`
-
-Sets a custom configuration URL for the SDK.
-
-#### Parameters
-
-- `url` (String): Custom configuration URL
-
-#### Returns
-
-- `Promise<boolean>`: Resolves to `true` if URL was set successfully
-
-### `addLocationChangeListener(callback)`
-
-Adds a listener for location changes.
-
-#### Parameters
-
-- `callback` (Function): Function to call when location changes, receives location object with latitude, longitude and optionally floorLevel
-
-### `removeLocationChangeListener()`
-
-Removes the location change listener.
-
-### `addStatusChangeListener(callback)`
-
-Adds a listener for SDK status changes.
-
-#### Parameters
-
-- `callback` (Function): Function to call when SDK status changes
-
-### `removeStatusChangeListener()`
-
-Removes the status change listener.
-
-### `addErrorListener(callback)`
-
-Adds a listener for SDK errors.
-
-#### Parameters
-
-- `callback` (Function): Function to call when SDK encounters an error
-
-### `removeErrorListener()`
-
-Removes the error listener.
-
-### `requestRequiredPermissions()`
+### `requestPermissions()`
 
 Requests all the required permissions for the SDK to work properly.
 
@@ -299,21 +286,13 @@ Requests all the required permissions for the SDK to work properly.
 
 - `Promise<boolean>`: Resolves to `true` if all required permissions are granted, `false` otherwise
 
-### `checkAllPermissions()`
+### `checkPermissions()`
 
 Checks if all required permissions are granted.
 
 #### Returns
 
 - `Promise<boolean>`: `true` if all required permissions are granted, `false` otherwise
-
-### `checkLocationPermission()`
-
-Checks if location permissions are granted.
-
-#### Returns
-
-- `Promise<boolean>`: `true` if location permissions are granted, `false` otherwise
 
 ### `checkBluetoothPermission()`
 
@@ -330,21 +309,21 @@ The plugin automatically adds these permissions:
 ### Android
 
 - `INTERNET` - For network communication
-- `BLUETOOTH` and `BLUETOOTH_ADMIN` - For Bluetooth functionality
 - `ACCESS_FINE_LOCATION` - For precise location
 - `ACCESS_COARSE_LOCATION` - For approximate location
-- `ACCESS_BACKGROUND_LOCATION` - For background location tracking (Android 10+)
-- `BLUETOOTH_CONNECT` and `BLUETOOTH_SCAN` - For enhanced Bluetooth functionality (Android 12+)
-- `RECEIVE_BOOT_COMPLETED` - For starting services on device boot
-- `ACCESS_NETWORK_STATE` - For network state monitoring
+- `BLUETOOTH`, `BLUETOOTH_ADMIN` - For Bluetooth functionality
+- `BLUETOOTH_CONNECT`, `BLUETOOTH_SCAN` - For Bluetooth on Android 12+
+- `RECEIVE_BOOT_COMPLETED` - For autostart capability
+- `ACCESS_NETWORK_STATE` - For network connectivity
 
 ### iOS
 
+- `NSLocationUsageDescription` - Location permission
 - `NSLocationWhenInUseUsageDescription` - Location permission when app is in use
 - `NSLocationAlwaysUsageDescription` - Location permission even when app is not in use
-- `NSLocationAlwaysAndWhenInUseUsageDescription` - Combined location permission
+- `NSLocationAlwaysAndWhenInUseUsageDescription` - Location permission
+- `NSBluetoothAlwaysUsageDescription` - Bluetooth permission
 - `NSBluetoothPeripheralUsageDescription` - Bluetooth permission
-- `NSBluetoothAlwaysUsageDescription` - Persistent Bluetooth permission
 
 ## ❓ Troubleshooting
 
@@ -353,7 +332,7 @@ The plugin automatically adds these permissions:
 If you see `PoilabsVdNavigationModule` not found error:
 
 1. Make sure you have run `npx expo prebuild`
-2. Verify that the iOS and Android native directories contain the necessary module files
+2. Verify you've completed the additional setup steps for Android/iOS
 3. Run `npx expo run:android` or `npx expo run:ios` to build and run the native project
 4. For Expo Go, this plugin will not work because it requires native modules
 
@@ -363,25 +342,15 @@ If you're having issues with iOS integration:
 
 1. Make sure the Podfile is correctly updated with `pod 'PoilabsVdNavigation'`
 2. Verify that `use_frameworks!` is in your Podfile
-3. Make sure the Swift files are properly added to your project
+3. Check that the Swift files are properly added to your project
 4. Run `pod install --repo-update` from the ios directory
-
-### Android Integration Issues
-
-If you're having issues with Android integration:
-
-1. Check that JitPack repository is properly added to your project's build.gradle
-2. Make sure the SDK dependency is added to app/build.gradle
-3. Verify that the package is properly initialized in MainApplication.java
-4. Check that all required permissions are included in AndroidManifest.xml
 
 ### Permission issues
 
 If the SDK is not working due to permission issues:
 
 1. Make sure you have requested all the necessary permissions
-2. For Android 10+, background location permission needs to be requested separately
-3. For Android 12+, Bluetooth permissions need to be requested separately
+2. For Android, ensure Bluetooth permissions are properly granted on Android 12+
 
 ## 📞 Support
 

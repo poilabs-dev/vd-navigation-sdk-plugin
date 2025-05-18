@@ -1,40 +1,40 @@
 {
-    "name": "@poilabs-dev/vd-navigation-sdk-plugin",
-    "version": "1.0.5",
-    "description": "Official Expo Config Plugin for integrating the Poilabs Visually Disabled Navigation SDK",
-    "main": "index.js",
-    "types": "index.d.ts",
-    "repository": {
-      "type": "git",
-      "url": "git+https://github.com/poilabs-dev/vd-navigation-sdk-plugin.git"
-    },
-    "keywords": [
-      "expo",
-      "config-plugin",
-      "poilabs",
-      "navigation",
-      "visually-disabled",
-      "accessibility"
-    ],
-    "author": "Poilabs",
-    "license": "MIT",
-    "peerDependencies": {
-      "expo": ">=47.0.0",
-      "expo-location": ">=15.0.0",
-      "expo-device": ">=5.0.0",
-      "react": "*",
-      "react-native": "*"
-    },
-    "devDependencies": {
-      "@expo/config-plugins": "^6.0.0",
-      "typescript": "^4.9.4"
-    },
-    "files": [
-      "app.plugin.js",
-      "index.d.ts",
-      "index.js",
-      "permission.js",
-      "src/**/*",
-      "plugin/**/*"
-    ]
+  "name": "@poilabs-dev/vd-navigation-sdk-plugin",
+  "version": "1.0.11",
+  "description": "Official Expo Config Plugin for integrating the Poilabs Visually Disabled Navigation SDK",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/poilabs-dev/vd-navigation-sdk-plugin.git"
+  },
+  "keywords": [
+    "expo",
+    "config-plugin",
+    "poilabs",
+    "vd-navigation",
+    "indoor-positioning",
+    "navigation",
+    "visually-disabled"
+  ],
+  "author": "Poilabs",
+  "license": "MIT",
+  "peerDependencies": {
+    "expo": ">=47.0.0",
+    "react": "*",
+    "react-native": "*"
+  },
+  "dependencies": {
+    "@expo/config-plugins": "^6.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^4.9.4"
+  },
+  "files": [
+    "app.plugin.js",
+    "index.d.ts",
+    "index.js",
+    "src/**/*",
+    "plugin/**/*"
+  ]
 }

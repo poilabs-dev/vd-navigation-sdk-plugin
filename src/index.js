@@ -1,182 +1,140 @@
-import { NativeModules, NativeEventEmitter, Platform } from "react-native";
-import {
-  requestRequiredPermissions,
-  checkAllPermissions,
-  checkLocationPermission,
-  checkBluetoothPermission,
-} from "./permission";
+import { NativeModules, Platform } from 'react-native';
+import { requestPermissions, checkPermissions, checkBluetoothPermission } from './permission';
 
 const { PoilabsVdNavigationModule } = NativeModules;
 
-const poilabsEventEmitter = new NativeEventEmitter(PoilabsVdNavigationModule);
-let locationChangeListener = null;
-let statusChangeListener = null;
-let errorListener = null;
-
-export async function startPoilabsVdNavigation(config) {
+/**
+ * Initialize and start the Poilabs VD Navigation SDK
+ *
+ * @param {Object} config - Configuration object
+ * @param {string} config.applicationId - Application ID provided by Poilabs
+ * @param {string} config.applicationSecretKey - Secret key provided by Poilabs
+ * @param {string} config.uniqueId - Unique ID for the user
+ * @param {string} [config.language='en'] - Language code (e.g. "en", "tr")
+ * @param {string} [config.title=''] - Title to display on the first page
+ * @param {string} [config.configUrl=null] - Optional URL to redirect requests
+ * @returns {Promise<boolean>} - Promise resolving to true if initialization was successful
+ */
+export async function startPoilabsNavigation(config) {
   try {
     const {
       applicationId,
-      applicationSecret,
+      applicationSecretKey,
       uniqueId,
-      lang = Platform.OS === "ios"
-        ? Locale.current?.languageCode || "tr"
-        : "tr",
-      configUrl,
+      language = 'en',
+      title = '',
+      configUrl = null,
     } = config;
 
-    if (!applicationId || !applicationSecret || !uniqueId) {
-      console.error(
-        "applicationId, applicationSecret ve uniqueId parametreleri gereklidir."
-      );
+    if (!applicationId) {
+      console.error('applicationId is required');
       return false;
     }
 
-    const permissionsGranted = await requestRequiredPermissions();
-    if (!permissionsGranted) {
-      console.warn("Gerekli izinler verilmedi. SDK düzgün çalışmayabilir.");
+    if (!applicationSecretKey) {
+      console.error('applicationSecretKey is required');
+      return false;
     }
 
-    if (configUrl) {
-      return await PoilabsVdNavigationModule.startPoilabsVdNavigationWithCustomConfig(
-        configUrl,
+    if (!uniqueId) {
+      console.error('uniqueId is required');
+      return false;
+    }
+
+    // Request necessary permissions
+    const permissionsGranted = await requestPermissions();
+    if (!permissionsGranted) {
+      console.error('Required permissions not granted');
+      return false;
+    }
+
+    // Initialize SDK
+    if (PoilabsVdNavigationModule) {
+      return await PoilabsVdNavigationModule.initialize(
         applicationId,
-        applicationSecret,
+        applicationSecretKey,
         uniqueId,
-        lang,
-        config.title || "Navigation"
+        language,
+        title,
+        configUrl
       );
     } else {
-      return await PoilabsVdNavigationModule.startPoilabsVdNavigation(
-        applicationId,
-        applicationSecret,
-        uniqueId,
-        lang,
-        config.title || "Navigation"
-      );
+      console.error('PoilabsVdNavigationModule not found');
+      return false;
     }
   } catch (error) {
-    console.error("Poilabs VD Navigation SDK başlatma hatası:", error);
+    console.error('Failed to initialize Poilabs SDK:', error);
     return false;
   }
 }
 
-export async function stopPoilabsVdNavigation() {
+/**
+ * Show the Poilabs VD Navigation interface
+ * 
+ * @returns {Promise<boolean>} - Promise resolving to true if navigation started successfully
+ */
+export async function showPoilabsVdNavigation() {
   try {
-    if (locationChangeListener) {
-      locationChangeListener.remove();
-      locationChangeListener = null;
+    if (PoilabsVdNavigationModule) {
+      return await PoilabsVdNavigationModule.showPoilabsVdNavigation();
+    } else if (NativeModules.PoilabsNavigationBridge) {
+      // For iOS, we can also use the bridge directly
+      NativeModules.PoilabsNavigationBridge.showPoilabsVdNavigation();
+      return true;
+    } else {
+      console.error('Navigation module not found');
+      return false;
     }
-
-    if (statusChangeListener) {
-      statusChangeListener.remove();
-      statusChangeListener = null;
-    }
-
-    if (errorListener) {
-      errorListener.remove();
-      errorListener = null;
-    }
-
-    await PoilabsVdNavigationModule.stopPoilabsVdNavigation();
-    return true;
   } catch (error) {
-    console.error("Poilabs VD Navigation SDK durdurma hatası:", error);
+    console.error('Failed to start navigation:', error);
     return false;
   }
 }
 
+/**
+ * Get the current user location
+ * 
+ * @returns {Promise<{latitude: number, longitude: number, floorLevel: number|null}>} - 
+ * Promise resolving to location object
+ */
+export async function getUserLocation() {
+  try {
+    if (PoilabsVdNavigationModule) {
+      return await PoilabsVdNavigationModule.getUserLocation();
+    } else {
+      console.error('PoilabsVdNavigationModule not found');
+      return null;
+    }
+  } catch (error) {
+    console.error('Failed to get user location:', error);
+    return null;
+  }
+}
+
+/**
+ * Update the user's unique ID
+ * 
+ * @param {string} uniqueId - New unique ID for the user
+ * @returns {Promise<boolean>} - Promise resolving to true if update was successful
+ */
 export async function updateUniqueId(uniqueId) {
   try {
     if (!uniqueId) {
-      console.error("uniqueId parametresi gereklidir.");
+      console.error('uniqueId is required');
       return false;
     }
-
-    return await PoilabsVdNavigationModule.updateUniqueId(uniqueId);
+    
+    if (PoilabsVdNavigationModule && PoilabsVdNavigationModule.updateUniqueId) {
+      return await PoilabsVdNavigationModule.updateUniqueId(uniqueId);
+    } else {
+      console.error('updateUniqueId method not available');
+      return false;
+    }
   } catch (error) {
-    console.error("uniqueId güncelleme hatası:", error);
+    console.error('Failed to update unique ID:', error);
     return false;
   }
 }
 
-export async function setCustomConfigUrl(url) {
-  try {
-    if (!url) {
-      console.error("URL parametresi gereklidir.");
-      return false;
-    }
-
-    // Bu fonksiyon şu an için SDK'da doğrudan yer almıyor,
-    // bu nedenle startPoilabsVdNavigationWithCustomConfig çağrısında
-    // configUrl parametresi olarak kullanılmalıdır.
-    return true;
-  } catch (error) {
-    console.error("Custom URL ayarlama hatası:", error);
-    return false;
-  }
-}
-
-export function addLocationChangeListener(callback) {
-  if (locationChangeListener) {
-    locationChangeListener.remove();
-  }
-
-  PoilabsVdNavigationModule.addLocationChangeListener();
-  locationChangeListener = poilabsEventEmitter.addListener(
-    "PoilabsLocationChangeEvent",
-    callback
-  );
-}
-
-export function removeLocationChangeListener() {
-  if (locationChangeListener) {
-    locationChangeListener.remove();
-    locationChangeListener = null;
-  }
-
-  PoilabsVdNavigationModule.removeLocationChangeListener();
-}
-
-export function addStatusChangeListener(callback) {
-  if (statusChangeListener) {
-    statusChangeListener.remove();
-  }
-
-  statusChangeListener = poilabsEventEmitter.addListener(
-    "PoilabsStatusChangeEvent",
-    callback
-  );
-}
-
-export function removeStatusChangeListener() {
-  if (statusChangeListener) {
-    statusChangeListener.remove();
-    statusChangeListener = null;
-  }
-}
-
-export function addErrorListener(callback) {
-  if (errorListener) {
-    errorListener.remove();
-  }
-
-  errorListener = poilabsEventEmitter.addListener(
-    "PoilabsErrorEvent",
-    callback
-  );
-}
-
-export function removeErrorListener() {
-  if (errorListener) {
-    errorListener.remove();
-    errorListener = null;
-  }
-}
-
-export {
-  requestRequiredPermissions,
-  checkAllPermissions,
-  checkLocationPermission,
-  checkBluetoothPermission,
-};
+// Export permission helpers
+export { requestPermissions, checkPermissions, checkBluetoothPermission };

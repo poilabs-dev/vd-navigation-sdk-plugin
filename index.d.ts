@@ -1,37 +1,58 @@
 export interface VdNavigationConfig {
   applicationId: string;
-  applicationSecret: string;
+  applicationSecretKey: string;
   uniqueId: string;
-  lang?: string;
-  configUrl?: string;
+  language?: string;
+  title?: string;
+  configUrl?: string | null;
 }
 
-export interface LocationResult {
+export interface UserLocation {
   latitude: number;
   longitude: number;
-  floorLevel?: number;
+  floorLevel: number | null;
 }
 
-export function startPoilabsVdNavigation(
-  config: VdNavigationConfig
-): Promise<boolean>;
+/**
+ * Initialize and start the Poilabs VD Navigation SDK
+ * @param config Configuration options for the SDK
+ * @returns Promise resolving to true if initialization was successful
+ */
+export function startPoilabsNavigation(config: VdNavigationConfig): Promise<boolean>;
 
-export function stopPoilabsVdNavigation(): Promise<boolean>;
+/**
+ * Show the Poilabs VD Navigation interface
+ * @returns Promise resolving to true if navigation started successfully
+ */
+export function showPoilabsVdNavigation(): Promise<boolean>;
 
+/**
+ * Get the current user location
+ * @returns Promise resolving to location object
+ */
+export function getUserLocation(): Promise<UserLocation | null>;
+
+/**
+ * Update the user's unique ID
+ * @param uniqueId New unique ID for the user
+ * @returns Promise resolving to true if update was successful
+ */
 export function updateUniqueId(uniqueId: string): Promise<boolean>;
 
-export function setCustomConfigUrl(url: string): Promise<boolean>;
+/**
+ * Request all necessary permissions for the SDK
+ * @returns Promise resolving to true if all permissions granted
+ */
+export function requestPermissions(): Promise<boolean>;
 
-export function addLocationChangeListener(
-  callback: (location: LocationResult) => void
-): void;
+/**
+ * Check if all necessary permissions are granted
+ * @returns Promise resolving to true if all permissions granted
+ */
+export function checkPermissions(): Promise<boolean>;
 
-export function removeLocationChangeListener(): void;
-
-export function requestRequiredPermissions(): Promise<boolean>;
-
-export function checkAllPermissions(): Promise<boolean>;
-
-export function checkLocationPermission(): Promise<boolean>;
-
+/**
+ * Check if Bluetooth permissions are granted (relevant for Android 12+)
+ * @returns Promise resolving to true if Bluetooth permissions granted
+ */
 export function checkBluetoothPermission(): Promise<boolean>;

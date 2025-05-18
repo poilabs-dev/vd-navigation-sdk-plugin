@@ -1,200 +1,115 @@
-import { Platform, PermissionsAndroid } from "react-native";
-import * as Location from "expo-location";
-import * as Device from "expo-device";
+import { Platform, PermissionsAndroid } from 'react-native';
 
-export async function requestRequiredPermissions() {
+/**
+ * Request all necessary permissions for Poilabs VD Navigation SDK
+ * @returns {Promise<boolean>} - Promise resolving to true if all permissions granted
+ */
+export async function requestPermissions() {
   try {
-    if (Platform.OS === "ios") {
-      const foreground = await Location.requestForegroundPermissionsAsync();
-      const background = await Location.requestBackgroundPermissionsAsync();
-
-      return foreground.status === "granted" && background.status === "granted";
-    }
-
-    if (Platform.OS !== "android") {
-      return false;
-    }
-
-    const sdkVersion = Device.osVersion ? parseInt(Device.osVersion, 10) : 0;
-
-    let fineLocationGranted = await PermissionsAndroid.check(
-      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
-    );
-
-    if (!fineLocationGranted) {
-      const fineLocationResult = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-        {
-          title: "Konum İzni",
-          message: "Navigasyon için konum izni gereklidir.",
-          buttonPositive: "Tamam",
-          buttonNegative: "İptal",
-        }
-      );
-
-      fineLocationGranted =
-        fineLocationResult === PermissionsAndroid.RESULTS.GRANTED;
-    }
-
-    let backgroundLocationGranted = true;
-    if (sdkVersion >= 29) {
-      backgroundLocationGranted = await PermissionsAndroid.check(
-        PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION
-      );
-
-      if (!backgroundLocationGranted) {
-        const backgroundLocationResult = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION,
-          {
-            title: "Arka Plan Konum İzni",
-            message: "Navigasyon için arka planda konum erişimi gereklidir.",
-            buttonPositive: "Tamam",
-            buttonNegative: "İptal",
-          }
-        );
-
-        backgroundLocationGranted =
-          backgroundLocationResult === PermissionsAndroid.RESULTS.GRANTED;
-      }
-    }
-
-    let bluetoothGranted = true;
-    if (sdkVersion >= 31) {
-      const bluetoothConnectGranted = await PermissionsAndroid.check(
-        PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT
-      );
-
-      const bluetoothScanGranted = await PermissionsAndroid.check(
-        PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN
-      );
-
-      if (!bluetoothConnectGranted || !bluetoothScanGranted) {
-        const bluetoothResults = await PermissionsAndroid.requestMultiple([
-          PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
-          PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
-        ]);
-
-        bluetoothGranted =
-          bluetoothResults[PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT] ===
-            PermissionsAndroid.RESULTS.GRANTED &&
-          bluetoothResults[PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN] ===
-            PermissionsAndroid.RESULTS.GRANTED;
-      }
-    }
-
-    return fineLocationGranted && backgroundLocationGranted && bluetoothGranted;
-  } catch (error) {
-    console.error("İzin isteme hatası:", error);
-    return false;
-  }
-}
-
-export async function checkAllPermissions() {
-  try {
-    if (Platform.OS === "ios") {
-      const foreground = await Location.getForegroundPermissionsAsync();
-      const background = await Location.getBackgroundPermissionsAsync();
-
-      return foreground.status === "granted" && background.status === "granted";
-    }
-
-    if (Platform.OS !== "android") {
-      return false;
-    }
-
-    const sdkVersion = Device.osVersion ? parseInt(Device.osVersion, 10) : 0;
-
-    const fineLocationGranted = await PermissionsAndroid.check(
-      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
-    );
-
-    let backgroundLocationGranted = true;
-    if (sdkVersion >= 29) {
-      backgroundLocationGranted = await PermissionsAndroid.check(
-        PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION
-      );
-    }
-
-    let bluetoothGranted = true;
-    if (sdkVersion >= 31) {
-      const bluetoothConnectGranted = await PermissionsAndroid.check(
-        PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT
-      );
-
-      const bluetoothScanGranted = await PermissionsAndroid.check(
-        PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN
-      );
-
-      bluetoothGranted = bluetoothConnectGranted && bluetoothScanGranted;
-    }
-
-    return fineLocationGranted && backgroundLocationGranted && bluetoothGranted;
-  } catch (error) {
-    console.error("İzin kontrolü hatası:", error);
-    return false;
-  }
-}
-
-export async function checkLocationPermission() {
-  try {
-    if (Platform.OS === "ios") {
-      const foreground = await Location.getForegroundPermissionsAsync();
-      const background = await Location.getBackgroundPermissionsAsync();
-
-      return foreground.status === "granted" && background.status === "granted";
-    }
-
-    if (Platform.OS !== "android") {
-      return false;
-    }
-
-    const sdkVersion = Device.osVersion ? parseInt(Device.osVersion, 10) : 0;
-
-    const fineLocationGranted = await PermissionsAndroid.check(
-      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
-    );
-
-    let backgroundLocationGranted = true;
-    if (sdkVersion >= 29) {
-      backgroundLocationGranted = await PermissionsAndroid.check(
-        PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION
-      );
-    }
-
-    return fineLocationGranted && backgroundLocationGranted;
-  } catch (error) {
-    console.error("Konum izni kontrolü hatası:", error);
-    return false;
-  }
-}
-
-export async function checkBluetoothPermission() {
-  try {
-    if (Platform.OS === "ios") {
+    if (Platform.OS === 'ios') {
+      // iOS permissions are requested at runtime by the system
       return true;
     }
 
-    if (Platform.OS !== "android") {
-      return false;
-    }
-
-    const sdkVersion = Device.osVersion ? parseInt(Device.osVersion, 10) : 0;
-
-    if (sdkVersion >= 31) {
-      const bluetoothConnectGranted = await PermissionsAndroid.check(
-        PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT
+    if (Platform.OS === 'android') {
+      const results = await PermissionsAndroid.requestMultiple([
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
+        PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+        PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+      ]);
+      
+      // Check if all critical permissions were granted
+      const locationGranted = 
+        results[PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION] === 
+        PermissionsAndroid.RESULTS.GRANTED;
+        
+      // Bluetooth permissions only exist on Android 12+ (API 31+)
+      const bluetoothPermissionsGranted = Platform.Version < 31 ? true : (
+        results[PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT] === 
+          PermissionsAndroid.RESULTS.GRANTED &&
+        results[PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN] === 
+          PermissionsAndroid.RESULTS.GRANTED
       );
-
-      const bluetoothScanGranted = await PermissionsAndroid.check(
-        PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN
-      );
-
-      return bluetoothConnectGranted && bluetoothScanGranted;
+      
+      return locationGranted && bluetoothPermissionsGranted;
     }
-
-    return true;
   } catch (error) {
-    console.error("Bluetooth izni kontrolü hatası:", error);
+    console.error("Permission request error:", error);
+  }
+  
+  return false;
+}
+
+/**
+ * Check if all necessary permissions are granted
+ * @returns {Promise<boolean>} - Promise resolving to true if all permissions granted
+ */
+export async function checkPermissions() {
+  try {
+    if (Platform.OS === 'ios') {
+      // On iOS, we assume permissions are granted since they're requested at runtime
+      return true;
+    }
+
+    if (Platform.OS === 'android') {
+      // Check location permissions (required for all Android versions)
+      const hasLocationPermission = await PermissionsAndroid.check(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
+      );
+      
+      // Check Bluetooth permissions (only on Android 12+)
+      let hasBluetoothPermissions = true;
+      if (Platform.Version >= 31) {
+        hasBluetoothPermissions = 
+          await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT) &&
+          await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN);
+      }
+      
+      return hasLocationPermission && hasBluetoothPermissions;
+    }
+  } catch (error) {
+    console.error("Permission check error:", error);
+  }
+  
+  return false;
+}
+
+/**
+ * Check if Bluetooth permissions are granted (relevant for Android 12+)
+ * @returns {Promise<boolean>} - Promise resolving to true if Bluetooth permissions granted
+ */
+export async function checkBluetoothPermission() {
+  try {
+    if (Platform.OS !== 'android' || Platform.Version < 31) {
+      return true;
+    }
+    
+    const hasConnectPermission = await PermissionsAndroid.check(
+      PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT
+    );
+    const hasScanPermission = await PermissionsAndroid.check(
+      PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN
+    );
+    
+    if (!hasConnectPermission || !hasScanPermission) {
+      // If permissions not granted, request them
+      const results = await PermissionsAndroid.requestMultiple([
+        PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+        PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN
+      ]);
+      
+      return (
+        results[PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT] === 
+          PermissionsAndroid.RESULTS.GRANTED &&
+        results[PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN] === 
+          PermissionsAndroid.RESULTS.GRANTED
+      );
+    }
+    
+    return hasConnectPermission && hasScanPermission;
+  } catch (error) {
+    console.error("Bluetooth permission check error:", error);
     return false;
   }
 }
