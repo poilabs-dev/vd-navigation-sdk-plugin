@@ -151,7 +151,7 @@ function withPoilabsNativeModules(config) {
         "node_modules/@poilabs-dev/vd-navigation-sdk-plugin/src/android"
       );
 
-      const moduleFiles = ["PoilabsVdNavigationModule.kt", "PoilabsPackage.kt"];
+      const moduleFiles = ["PoilabsNavigationBridge.kt", "PoilabsPackage.java"];
 
       moduleFiles.forEach((file) => {
         const sourcePath = path.join(sourceDir, file);

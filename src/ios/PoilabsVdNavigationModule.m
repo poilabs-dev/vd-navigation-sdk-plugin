@@ -1,6 +1,5 @@
-
 #import "PoilabsVdNavigationModule.h"
-#import <PoilabsVdNavigationUI/PoilabsVdNavigationUI.h>
+#import "PoilabsNavigationBridge.h"
 
 @implementation PoilabsVdNavigationModule
 
@@ -15,7 +14,7 @@ NSString *titleValue;
 NSString *configUrlValue;
 
 + (BOOL)requiresMainQueueSetup {
-    return NO; // or YES if you need to access UIKit classes
+    return YES;
 }
 
 RCT_EXPORT_METHOD(initialize:(NSString *)applicationId
@@ -31,11 +30,12 @@ RCT_EXPORT_METHOD(initialize:(NSString *)applicationId
     applicationIdValue = applicationId;
     applicationSecretValue = applicationSecretKey;
     uniqueIdValue = uniqueId;
-    languageValue = language;
+    languageValue = language ?: @"en";
     titleValue = title;
     configUrlValue = configUrl;
     
-    // For now, just resolve true as initialization is delayed until we show the UI
+    // Update the PoilabsVdNavigationManager.swift file with these values
+    // For now, just resolve true
     resolve(@(YES));
 }
 
@@ -48,40 +48,17 @@ RCT_EXPORT_METHOD(showPoilabsVdNavigation:(RCTPromiseResolveBlock)resolve
     }
     
     dispatch_async(dispatch_get_main_queue(), ^{
-        // Normally we'd use the PoilabsNavigationBridge here
-        // But we also provide direct access to the SDK for completeness
-        void (^completionBlock)(UIViewController *) = ^(UIViewController *controller) {
-            UIViewController *rootViewController = [UIApplication sharedApplication].keyWindow.rootViewController;
-            if (rootViewController) {
-                [rootViewController presentViewController:controller animated:YES completion:nil];
-                resolve(@(YES));
-            } else {
-                reject(@"no_root_view", @"Could not find root view controller", nil);
-            }
-        };
-        
-        if (configUrlValue && ![configUrlValue isEqualToString:@""]) {
-            [PoilabsVdNavigationUI.new initWithConfigUrl:configUrlValue
-                                        withApplicationID:applicationIdValue
-                                     withApplicationSecret:applicationSecretValue
-                                     withUniqueIdentifier:uniqueIdValue
-                                                     lang:languageValue
-                                          completionBlock:completionBlock];
-        } else {
-            [PoilabsVdNavigationUI.new initWithApplicationID:applicationIdValue
-                                        withApplicationSecret:applicationSecretValue
-                                        withUniqueIdentifier:uniqueIdValue
-                                                        lang:languageValue
-                                             completionBlock:completionBlock];
-        }
+        // Use the PoilabsNavigationBridge which is already set up
+        PoilabsNavigationBridge *bridge = [[PoilabsNavigationBridge alloc] init];
+        [bridge showPoilabsVdNavigation];
+        resolve(@(YES));
     });
 }
 
 RCT_EXPORT_METHOD(getUserLocation:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 {
-    // This would normally get the user's location from the SDK
-    // For now we'll return a placeholder
+    // Return placeholder location
     NSDictionary *location = @{
         @"latitude": @(0.0),
         @"longitude": @(0.0),

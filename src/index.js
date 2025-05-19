@@ -1,20 +1,8 @@
-import { NativeModules, Platform } from 'react-native';
+import { NativeModules } from 'react-native';
 import { requestPermissions, checkPermissions, checkBluetoothPermission } from './permission';
 
-const { PoilabsVdNavigationModule } = NativeModules;
+const { PoilabsNavigationBridge } = NativeModules;
 
-/**
- * Initialize and start the Poilabs VD Navigation SDK
- *
- * @param {Object} config - Configuration object
- * @param {string} config.applicationId - Application ID provided by Poilabs
- * @param {string} config.applicationSecretKey - Secret key provided by Poilabs
- * @param {string} config.uniqueId - Unique ID for the user
- * @param {string} [config.language='en'] - Language code (e.g. "en", "tr")
- * @param {string} [config.title=''] - Title to display on the first page
- * @param {string} [config.configUrl=null] - Optional URL to redirect requests
- * @returns {Promise<boolean>} - Promise resolving to true if initialization was successful
- */
 export async function startPoilabsNavigation(config) {
   try {
     const {
@@ -49,8 +37,8 @@ export async function startPoilabsNavigation(config) {
     }
 
     // Initialize SDK
-    if (PoilabsVdNavigationModule) {
-      return await PoilabsVdNavigationModule.initialize(
+    if (PoilabsNavigationBridge) {
+      return await PoilabsNavigationBridge.initialize(
         applicationId,
         applicationSecretKey,
         uniqueId,
@@ -59,7 +47,7 @@ export async function startPoilabsNavigation(config) {
         configUrl
       );
     } else {
-      console.error('PoilabsVdNavigationModule not found');
+      console.error('PoilabsNavigationBridge not found');
       return false;
     }
   } catch (error) {
@@ -70,19 +58,13 @@ export async function startPoilabsNavigation(config) {
 
 /**
  * Show the Poilabs VD Navigation interface
- * 
- * @returns {Promise<boolean>} - Promise resolving to true if navigation started successfully
  */
 export async function showPoilabsVdNavigation() {
   try {
-    if (PoilabsVdNavigationModule) {
-      return await PoilabsVdNavigationModule.showPoilabsVdNavigation();
-    } else if (NativeModules.PoilabsNavigationBridge) {
-      // For iOS, we can also use the bridge directly
-      NativeModules.PoilabsNavigationBridge.showPoilabsVdNavigation();
-      return true;
+    if (PoilabsNavigationBridge) {
+      return await PoilabsNavigationBridge.showPoilabsVdNavigation();
     } else {
-      console.error('Navigation module not found');
+      console.error('PoilabsNavigationBridge not found');
       return false;
     }
   } catch (error) {
@@ -93,16 +75,13 @@ export async function showPoilabsVdNavigation() {
 
 /**
  * Get the current user location
- * 
- * @returns {Promise<{latitude: number, longitude: number, floorLevel: number|null}>} - 
- * Promise resolving to location object
  */
 export async function getUserLocation() {
   try {
-    if (PoilabsVdNavigationModule) {
-      return await PoilabsVdNavigationModule.getUserLocation();
+    if (PoilabsNavigationBridge) {
+      return await PoilabsNavigationBridge.getUserLocation();
     } else {
-      console.error('PoilabsVdNavigationModule not found');
+      console.error('PoilabsNavigationBridge not found');
       return null;
     }
   } catch (error) {
@@ -113,9 +92,6 @@ export async function getUserLocation() {
 
 /**
  * Update the user's unique ID
- * 
- * @param {string} uniqueId - New unique ID for the user
- * @returns {Promise<boolean>} - Promise resolving to true if update was successful
  */
 export async function updateUniqueId(uniqueId) {
   try {
@@ -124,8 +100,8 @@ export async function updateUniqueId(uniqueId) {
       return false;
     }
     
-    if (PoilabsVdNavigationModule && PoilabsVdNavigationModule.updateUniqueId) {
-      return await PoilabsVdNavigationModule.updateUniqueId(uniqueId);
+    if (PoilabsNavigationBridge && PoilabsNavigationBridge.updateUniqueId) {
+      return await PoilabsNavigationBridge.updateUniqueId(uniqueId);
     } else {
       console.error('updateUniqueId method not available');
       return false;
