@@ -118,22 +118,21 @@ function withPoilabsNativeModules(config) {
         const swiftContent = `
 import UIKit
 import PoilabsVdNavigationUI
-
 @objc class PoilabsVdNavigationManager: NSObject {
-    @objc func showPoilabsVdNavigation() {
-        let appId = "YOUR_APPLICATION_ID"
-        let secret = "YOUR_APPLICATION_SECRET"
-        let uniqueIdentifier = "UNIQUE_ID"
+  @objc func showPoilabsVdNavigation() {
+    let appId = "YOUR_APPLICATION_ID"
+    let secret = "YOUR_APPLICATION_SECRET"
+    let uniqueIdentifier = "UNIQUE_ID"
         
-        let _ = PoilabsVdNavigationUI(withApplicationID: appId, withApplicationSecret: secret, withUniqueIdentifier: uniqueIdentifier) { controller in
-            DispatchQueue.main.async {
-                let keyWindow = UIApplication.shared.windows.first(where: { $0.isKeyWindow }) ?? UIApplication.shared.windows.first
-                let topController = keyWindow?.rootViewController
-                topController?.show(controller, sender: self)
-            }
-        }
+    let _ = PoilabsVdNavigationUI(withApplicationID: appId, withApplicationSecret: secret, withUniqueIdentifier: uniqueIdentifier) { controller in
+      DispatchQueue.main.async {
+          let keyWindow = UIApplication.shared.windows.first(where: { $0.isKeyWindow }) ?? UIApplication.shared.windows.first
+          let topController = keyWindow?.rootViewController
+          topController?.show(controller, sender: self)
+      }
     }
-}
+  }
+}        
 `;
         fs.writeFileSync(managerSwiftFile, swiftContent);
         console.log(`✅ iOS: Created PoilabsVdNavigationManager.swift at ${managerSwiftFile}`);
