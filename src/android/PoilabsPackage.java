@@ -12,7 +12,7 @@ public class PoilabsPackage implements ReactPackage {
     @NonNull
     @Override
     public List<NativeModule> createNativeModules(@NonNull ReactApplicationContext reactContext) {
-        return Collections.singletonList(new PoilabsNavigationBridge(reactContext));
+        return Collections.singletonList(new PoilabsVdNavigationModule(reactContext));
     }
 
     @NonNull
