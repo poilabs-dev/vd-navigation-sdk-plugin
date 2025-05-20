@@ -4,36 +4,34 @@ const path = require("path");
 
 function withPoilabsInfoPlist(config) {
   return withInfoPlist(config, (mod) => {
-    console.log('📝 iOS: Adding required permissions to Info.plist');
-    
     const plist = mod.modResults;
 
     // Location permissions
     plist.NSLocationUsageDescription =
-      plist.NSLocationUsageDescription || 
+      plist.NSLocationUsageDescription ||
       "Location permission is required to provide navigation services for visually disabled users";
-    
+
     plist.NSLocationWhenInUseUsageDescription =
-      plist.NSLocationWhenInUseUsageDescription || 
+      plist.NSLocationWhenInUseUsageDescription ||
       "Location permission is required to provide navigation services for visually disabled users";
-    
+
     plist.NSLocationAlwaysUsageDescription =
-      plist.NSLocationAlwaysUsageDescription || 
+      plist.NSLocationAlwaysUsageDescription ||
       "Location permission is required to provide navigation services for visually disabled users";
-    
+
     plist.NSLocationAlwaysAndWhenInUseUsageDescription =
-      plist.NSLocationAlwaysAndWhenInUseUsageDescription || 
+      plist.NSLocationAlwaysAndWhenInUseUsageDescription ||
       "Location permission is required to provide navigation services for visually disabled users";
 
     // Bluetooth permissions
     plist.NSBluetoothAlwaysUsageDescription =
-      plist.NSBluetoothAlwaysUsageDescription || 
+      plist.NSBluetoothAlwaysUsageDescription ||
       "Bluetooth is required to detect beacons for indoor navigation";
-    
+
     plist.NSBluetoothPeripheralUsageDescription =
-      plist.NSBluetoothPeripheralUsageDescription || 
+      plist.NSBluetoothPeripheralUsageDescription ||
       "Bluetooth is required to detect beacons for indoor navigation";
-    
+
     return mod;
   });
 }
@@ -42,23 +40,23 @@ function withPoilabsPodfile(config) {
   return withDangerousMod(config, [
     "ios",
     async (modConfig) => {
-      console.log('📝 iOS: Modifying Podfile');
+      console.log("📝 iOS: Modifying Podfile");
       const podfile = path.join(
         modConfig.modRequest.projectRoot,
         "ios/Podfile"
       );
-      
+
       if (!fs.existsSync(podfile)) {
-        console.log('❌ iOS: Podfile not found at', podfile);
+        console.log("❌ iOS: Podfile not found at", podfile);
         return modConfig;
       }
-      
+
       let podText = fs.readFileSync(podfile, "utf8");
 
       // Add use_frameworks! before use_react_native!
       if (!podText.includes("use_frameworks!")) {
-        console.log('📝 iOS: Adding use_frameworks! to Podfile');
-        
+        console.log("📝 iOS: Adding use_frameworks! to Podfile");
+
         if (podText.includes("use_react_native!")) {
           podText = podText.replace(
             /use_react_native!/,
@@ -76,8 +74,8 @@ function withPoilabsPodfile(config) {
 
       // Add PoilabsVdNavigation pod
       if (!podText.includes("pod 'PoilabsVdNavigation'")) {
-        console.log('📝 iOS: Adding PoilabsVdNavigation pod');
-        
+        console.log("📝 iOS: Adding PoilabsVdNavigation pod");
+
         if (podText.includes("target ")) {
           podText = podText.replace(
             /target ['"][^'"]+['"] do/,
@@ -86,9 +84,9 @@ function withPoilabsPodfile(config) {
         } else {
           const lastEndIndex = podText.lastIndexOf("end");
           if (lastEndIndex !== -1) {
-            podText = 
-              podText.substring(0, lastEndIndex) + 
-              "  pod 'PoilabsVdNavigation', '7.1.0'\n" + 
+            podText =
+              podText.substring(0, lastEndIndex) +
+              "  pod 'PoilabsVdNavigation', '7.1.0'\n" +
               podText.substring(lastEndIndex);
           } else {
             podText += "\npod 'PoilabsVdNavigation', '7.1.0'\n";
@@ -97,8 +95,8 @@ function withPoilabsPodfile(config) {
       }
 
       fs.writeFileSync(podfile, podText);
-      console.log('✅ iOS: Podfile modified successfully');
-      
+      console.log("✅ iOS: Podfile modified successfully");
+
       return modConfig;
     },
   ]);
@@ -108,12 +106,16 @@ function withPoilabsNativeModules(config) {
   return withDangerousMod(config, [
     "ios",
     async (modConfig) => {
-      console.log('📝 iOS: Creating native bridge files');
+      console.log("📝 iOS: Creating native bridge files");
       const root = modConfig.modRequest.projectRoot;
-      const projectName = modConfig.modRequest.projectName || 'PoilabsApp';
-      
+      const projectName = modConfig.modRequest.projectName || "PoilabsApp";
+
       // Create Swift manager file
-      const managerSwiftFile = path.join(root, "ios", "PoilabsVdNavigationManager.swift");
+      const managerSwiftFile = path.join(
+        root,
+        "ios",
+        "PoilabsVdNavigationManager.swift"
+      );
       if (!fs.existsSync(managerSwiftFile)) {
         const swiftContent = `
 import UIKit
@@ -135,11 +137,17 @@ import PoilabsVdNavigationUI
 }        
 `;
         fs.writeFileSync(managerSwiftFile, swiftContent);
-        console.log(`✅ iOS: Created PoilabsVdNavigationManager.swift at ${managerSwiftFile}`);
+        console.log(
+          `✅ iOS: Created PoilabsVdNavigationManager.swift at ${managerSwiftFile}`
+        );
       }
-      
+
       // Create bridge header file
-      const bridgeHeaderFile = path.join(root, "ios", "PoilabsNavigationBridge.h");
+      const bridgeHeaderFile = path.join(
+        root,
+        "ios",
+        "PoilabsNavigationBridge.h"
+      );
       if (!fs.existsSync(bridgeHeaderFile)) {
         const headerContent = `
 #ifndef PoilabsNavigationBridge_h
@@ -154,11 +162,17 @@ import PoilabsVdNavigationUI
 #endif /* PoilabsNavigationBridge_h */
 `;
         fs.writeFileSync(bridgeHeaderFile, headerContent);
-        console.log(`✅ iOS: Created PoilabsNavigationBridge.h at ${bridgeHeaderFile}`);
+        console.log(
+          `✅ iOS: Created PoilabsNavigationBridge.h at ${bridgeHeaderFile}`
+        );
       }
-      
+
       // Create bridge implementation file
-      const bridgeImplFile = path.join(root, "ios", "PoilabsNavigationBridge.m");
+      const bridgeImplFile = path.join(
+        root,
+        "ios",
+        "PoilabsNavigationBridge.m"
+      );
       if (!fs.existsSync(bridgeImplFile)) {
         const implContent = `
 #import <Foundation/Foundation.h>
@@ -179,31 +193,33 @@ RCT_EXPORT_METHOD(showPoilabsVdNavigation) {
 @end
 `;
         fs.writeFileSync(bridgeImplFile, implContent);
-        console.log(`✅ iOS: Created PoilabsNavigationBridge.m at ${bridgeImplFile}`);
+        console.log(
+          `✅ iOS: Created PoilabsNavigationBridge.m at ${bridgeImplFile}`
+        );
       }
-      
+
       // Create module files
       const moduleDir = path.join(root, "ios", projectName, "PoilabsModule");
       if (!fs.existsSync(moduleDir)) {
         fs.mkdirSync(moduleDir, { recursive: true });
         console.log(`✅ iOS: Created PoilabsModule directory at ${moduleDir}`);
       }
-      
+
       // Copy native module files from the plugin
       const sourceDir = path.join(
         root,
         "node_modules/@poilabs-dev/vd-navigation-sdk-plugin/src/ios"
       );
-      
+
       const moduleFiles = [
         "PoilabsVdNavigationModule.h",
-        "PoilabsVdNavigationModule.m"
+        "PoilabsVdNavigationModule.m",
       ];
-      
+
       moduleFiles.forEach((file) => {
         const sourcePath = path.join(sourceDir, file);
         const destPath = path.join(moduleDir, file);
-        
+
         if (fs.existsSync(sourcePath)) {
           const content = fs.readFileSync(sourcePath, "utf8");
           fs.writeFileSync(destPath, content, "utf8");
@@ -211,10 +227,10 @@ RCT_EXPORT_METHOD(showPoilabsVdNavigation) {
         } else {
           console.log(`⚠️ iOS: Source file not found at ${sourcePath}`);
           // Create default implementation if source doesn't exist
-          if (file.endsWith('.h')) {
+          if (file.endsWith(".h")) {
             const headerContent = `
-#ifndef ${file.replace('.h', '')}_h
-#define ${file.replace('.h', '')}_h
+#ifndef ${file.replace(".h", "")}_h
+#define ${file.replace(".h", "")}_h
 
 #import <React/RCTBridgeModule.h>
 
@@ -225,7 +241,7 @@ RCT_EXPORT_METHOD(showPoilabsVdNavigation) {
 `;
             fs.writeFileSync(destPath, headerContent, "utf8");
             console.log(`✅ iOS: Created default ${file} at ${destPath}`);
-          } else if (file.endsWith('.m')) {
+          } else if (file.endsWith(".m")) {
             const implContent = `
 #import "PoilabsVdNavigationModule.h"
 #import <PoilabsVdNavigationUI/PoilabsVdNavigationUI.h>
@@ -275,8 +291,86 @@ RCT_EXPORT_METHOD(getUserLocation:(RCTPromiseResolveBlock)resolve
           }
         }
       });
-      
-      console.log('✅ iOS: Native bridge files created successfully');
+
+      console.log("✅ iOS: Native bridge files created successfully");
+      return modConfig;
+    },
+  ]);
+}
+
+function withPoilabsBridgingHeader(config) {
+  return withDangerousMod(config, [
+    "ios",
+    async (modConfig) => {
+      const root = modConfig.modRequest.projectRoot;
+      const projectName = modConfig.modRequest.projectName || "PoilabsApp";
+
+      const bridgingHeaderPath = path.join(
+        root,
+        "ios",
+        projectName,
+        `${projectName}-Bridging-Header.h`
+      );
+      let bridgingHeaderAlternativePath = path.join(
+        root,
+        "ios",
+        `${projectName}-Bridging-Header.h`
+      );
+
+      let headerPath = null;
+
+      if (fs.existsSync(bridgingHeaderPath)) {
+        headerPath = bridgingHeaderPath;
+      } else if (fs.existsSync(bridgingHeaderAlternativePath)) {
+        headerPath = bridgingHeaderAlternativePath;
+      } else {
+        const iosDir = path.join(root, "ios");
+        const files = fs.readdirSync(iosDir);
+
+        for (const file of files) {
+          if (file.includes("-Bridging-Header.h")) {
+            headerPath = path.join(iosDir, file);
+            break;
+          }
+        }
+
+        if (!headerPath) {
+          const subDirs = files.filter((file) =>
+            fs.statSync(path.join(iosDir, file)).isDirectory()
+          );
+
+          for (const dir of subDirs) {
+            const subDirPath = path.join(iosDir, dir);
+            const subFiles = fs.readdirSync(subDirPath);
+
+            for (const file of subFiles) {
+              if (file.includes("-Bridging-Header.h")) {
+                headerPath = path.join(subDirPath, file);
+                break;
+              }
+            }
+
+            if (headerPath) break;
+          }
+        }
+      }
+
+      if (headerPath) {
+        let headerContent = fs.readFileSync(headerPath, "utf8");
+
+        if (
+          !headerContent.includes(
+            "PoilabsVdNavigationUI/PoilabsVdNavigationUI.h"
+          )
+        ) {
+          headerContent +=
+            "\n#import <PoilabsVdNavigationUI/PoilabsVdNavigationUI.h>\n";
+
+          fs.writeFileSync(headerPath, headerContent);
+        } else {
+        }
+      }
+
       return modConfig;
     },
   ]);
@@ -286,6 +380,7 @@ function withPoilabsIOS(config) {
   config = withPoilabsInfoPlist(config);
   config = withPoilabsPodfile(config);
   config = withPoilabsNativeModules(config);
+  config = withPoilabsBridgingHeader(config);
   return config;
 }
 

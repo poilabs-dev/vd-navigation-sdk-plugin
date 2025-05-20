@@ -1,7 +1,7 @@
 import { NativeModules } from 'react-native';
 import { requestPermissions, checkPermissions, checkBluetoothPermission } from './permission';
 
-const { PoilabsNavigationBridge } = NativeModules;
+const { PoilabsVdNavigationModule } = NativeModules;
 
 export async function startPoilabsNavigation(config) {
   try {
@@ -37,8 +37,8 @@ export async function startPoilabsNavigation(config) {
     }
 
     // Initialize SDK
-    if (PoilabsNavigationBridge) {
-      return await PoilabsNavigationBridge.initialize(
+    if (PoilabsVdNavigationModule) {
+      return await PoilabsVdNavigationModule.initialize(
         applicationId,
         applicationSecretKey,
         uniqueId,
@@ -47,7 +47,7 @@ export async function startPoilabsNavigation(config) {
         configUrl
       );
     } else {
-      console.error('PoilabsNavigationBridge not found');
+      console.error('PoilabsVdNavigationModule not found');
       return false;
     }
   } catch (error) {
@@ -61,10 +61,10 @@ export async function startPoilabsNavigation(config) {
  */
 export async function showPoilabsVdNavigation() {
   try {
-    if (PoilabsNavigationBridge) {
-      return await PoilabsNavigationBridge.showPoilabsVdNavigation();
+    if (PoilabsVdNavigationModule) {
+      return await PoilabsVdNavigationModule.showPoilabsVdNavigation();
     } else {
-      console.error('PoilabsNavigationBridge not found');
+      console.error('PoilabsVdNavigationModule not found');
       return false;
     }
   } catch (error) {
@@ -78,10 +78,10 @@ export async function showPoilabsVdNavigation() {
  */
 export async function getUserLocation() {
   try {
-    if (PoilabsNavigationBridge) {
-      return await PoilabsNavigationBridge.getUserLocation();
+    if (PoilabsVdNavigationModule) {
+      return await PoilabsVdNavigationModule.getUserLocation();
     } else {
-      console.error('PoilabsNavigationBridge not found');
+      console.error('PoilabsVdNavigationModule not found');
       return null;
     }
   } catch (error) {
@@ -100,8 +100,8 @@ export async function updateUniqueId(uniqueId) {
       return false;
     }
     
-    if (PoilabsNavigationBridge && PoilabsNavigationBridge.updateUniqueId) {
-      return await PoilabsNavigationBridge.updateUniqueId(uniqueId);
+    if (PoilabsVdNavigationModule && PoilabsVdNavigationModule.updateUniqueId) {
+      return await PoilabsVdNavigationModule.updateUniqueId(uniqueId);
     } else {
       console.error('updateUniqueId method not available');
       return false;

@@ -13,12 +13,12 @@ import com.poilabs.vd.nav.non.ui.models.PoiManager
 import com.poilabs.vd.nav.non.ui.models.LocationCallback
 import com.poilabs.vd.nav.non.ui.models.PLPStatus
 
-class PoilabsNavigationBridge internal constructor(context: ReactApplicationContext?) :
+class PoilabsVdNavigationModule internal constructor(context: ReactApplicationContext?) :
     ReactContextBaseJavaModule(context) {
     
     // Dokümana uygun olarak bu ismi döndürüyoruz
     override fun getName(): String {
-        return "PoilabsNavigationBridge"
+        return "PoilabsVdNavigationModule"
     }
     
     @ReactMethod
