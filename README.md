@@ -113,18 +113,19 @@ npx expo run:ios
 After the prebuild process, you can use the SDK in your application:
 
 ```javascript
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import {
-  startPoilabsNavigation,
-  showPoilabsVdNavigation,
   getUserLocation,
-  requestPermissions
-} from '@poilabs-dev/vd-navigation-sdk-plugin';
+  requestPermissions,
+  showPoilabsVdNavigation,
+  startPoilabsNavigation,
+  UserLocation,
+} from "@poilabs-dev/vd-navigation-sdk-plugin";
+import React, { useEffect, useState } from "react";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 export default function App() {
-  const [sdkStatus, setSdkStatus] = useState('Not initialized');
-  const [location, setLocation] = useState(null);
+  const [sdkStatus, setSdkStatus] = useState("Not initialized");
+  const [location, setLocation] = useState<UserLocation>();
 
   useEffect(() => {
     async function initNavigation() {
@@ -132,7 +133,7 @@ export default function App() {
         // Request permissions first
         const hasPermissions = await requestPermissions();
         if (!hasPermissions) {
-          setSdkStatus('Permissions not granted');
+          setSdkStatus("Permissions not granted");
           return;
         }
 
@@ -144,8 +145,8 @@ export default function App() {
           language: 'en', // or 'tr' for Turkish
         });
 
-        setSdkStatus(success ? 'Initialized ✅' : 'Initialization failed ❌');
-      } catch (error) {
+        setSdkStatus(success ? "Initialized ✅" : "Initialization failed ❌");
+      } catch (error: any) {
         setSdkStatus(`Error: ${error.message}`);
       }
     }
@@ -156,37 +157,39 @@ export default function App() {
   const handleStartNavigation = async () => {
     try {
       const success = await showPoilabsVdNavigation();
-      console.log('Navigation started:', success);
+      console.log("Navigation started:", success);
     } catch (error) {
-      console.error('Navigation error:', error);
+      console.error("Navigation error:", error);
     }
   };
 
   const handleGetLocation = async () => {
     try {
       const userLocation = await getUserLocation();
-      setLocation(userLocation);
+      if (userLocation) {
+        setLocation(userLocation);
+      }
     } catch (error) {
-      console.error('Get location error:', error);
+      console.error("Get location error:", error);
     }
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.status}>SDK Status: {sdkStatus}</Text>
-      
+
       {location && (
         <View style={styles.locationBox}>
           <Text>Latitude: {location.latitude}</Text>
           <Text>Longitude: {location.longitude}</Text>
-          <Text>Floor Level: {location.floorLevel ?? 'Unknown'}</Text>
+          <Text>Floor Level: {location.floorLevel ?? "Unknown"}</Text>
         </View>
       )}
-      
+
       <TouchableOpacity style={styles.button} onPress={handleStartNavigation}>
         <Text style={styles.buttonText}>Start Navigation</Text>
       </TouchableOpacity>
-      
+
       <TouchableOpacity style={styles.button} onPress={handleGetLocation}>
         <Text style={styles.buttonText}>Get Location</Text>
       </TouchableOpacity>
@@ -197,8 +200,8 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     padding: 20,
   },
   status: {
@@ -210,19 +213,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 5,
     marginBottom: 20,
-    width: '100%',
+    width: "100%",
   },
   button: {
-    backgroundColor: '#007AFF',
+    backgroundColor: "#007AFF",
     padding: 15,
     borderRadius: 5,
-    alignItems: 'center',
+    alignItems: "center",
     marginVertical: 10,
-    width: '100%',
+    width: "100%",
   },
   buttonText: {
-    color: 'white',
-    fontWeight: 'bold',
+    color: "white",
+    fontWeight: "bold",
   },
 });
 ```

@@ -17,6 +17,28 @@ NSString *configUrlValue;
     return YES;
 }
 
+- (instancetype)init {
+    self = [super init];
+    if (self) {
+        // Notification ismini PoilabsLocationUpdated olarak ayarlıyoruz
+        [[NSNotificationCenter defaultCenter] addObserver:self 
+                                                selector:@selector(locationDidUpdate:) 
+                                                    name:@"PoilabsLocationUpdated" 
+                                                  object:nil];
+        NSLog(@"📱 Location listener set up in module");
+    }
+    return self;
+}
+
+- (void)locationDidUpdate:(NSNotification *)notification {
+    NSLog(@"📱 Location update notification received");
+    // Bu metod sadece bildirim almak için
+}
+
+- (void)dealloc {
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
 RCT_EXPORT_METHOD(initialize:(NSString *)applicationId
                   secretKey:(NSString *)applicationSecretKey
                   uniqueId:(NSString *)uniqueId
@@ -58,13 +80,30 @@ RCT_EXPORT_METHOD(showPoilabsVdNavigation:(RCTPromiseResolveBlock)resolve
 RCT_EXPORT_METHOD(getUserLocation:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 {
-    // Return placeholder location
-    NSDictionary *location = @{
-        @"latitude": @(0.0),
-        @"longitude": @(0.0),
-        @"floorLevel": [NSNull null]
-    };
-    resolve(location);
+    // UserDefaults'tan konum verilerini al
+    BOOL hasLocation = [[NSUserDefaults standardUserDefaults] boolForKey:@"poilabs_has_location"];
+    
+    if (hasLocation) {
+        double latitude = [[NSUserDefaults standardUserDefaults] doubleForKey:@"poilabs_location_latitude"];
+        double longitude = [[NSUserDefaults standardUserDefaults] doubleForKey:@"poilabs_location_longitude"];
+        
+        NSDictionary *location = @{
+            @"latitude": @(latitude),
+            @"longitude": @(longitude),
+        };
+        
+        NSLog(@"✅ Returning ACTUAL location: %@", location);
+        resolve(location);
+    } else {
+        // Henüz konum alınmadı
+        NSDictionary *defaultLocation = @{
+            @"latitude": @(0.0),
+            @"longitude": @(0.0),
+        };
+        
+        NSLog(@"⚠️ No location data yet from SDK");
+        resolve(defaultLocation);
+    }
 }
 
 @end
