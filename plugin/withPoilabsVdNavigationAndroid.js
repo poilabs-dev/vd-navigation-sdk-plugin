@@ -100,6 +100,29 @@ function withPoilabsGradle(config, { jitpackToken }) {
       fs.writeFileSync(appGradle, appText);
       console.log("✅ Android: Added SDK dependency to app build.gradle");
 
+      const gradlePropertiesPath = path.join(root, "android/gradle.properties");
+      
+      if (fs.existsSync(gradlePropertiesPath)) {
+        let gradleProps = fs.readFileSync(gradlePropertiesPath, "utf8");
+        
+        if (!gradleProps.includes("android.enableJetifier=")) {
+          gradleProps += "\n# Enable Jetifier for support library compatibility\nandroid.enableJetifier=true\n";
+          fs.writeFileSync(gradlePropertiesPath, gradleProps);
+          console.log("✅ Android: Enabled Jetifier in gradle.properties");
+        } else if (!gradleProps.includes("android.enableJetifier=true")) {
+          gradleProps = gradleProps.replace(
+            /android\.enableJetifier=false/g, 
+            "android.enableJetifier=true"
+          );
+          fs.writeFileSync(gradlePropertiesPath, gradleProps);
+          console.log("✅ Android: Updated Jetifier setting to true in gradle.properties");
+        } else {
+          console.log("ℹ️ Android: Jetifier is already enabled in gradle.properties");
+        }
+      } else {
+        console.log("❌ Android: gradle.properties not found at", gradlePropertiesPath);
+      }
+
       return modConfig;
     },
   ]);

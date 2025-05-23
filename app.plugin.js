@@ -3,7 +3,7 @@ const withPoilabsSDK = require("./plugin");
 
 const pkg = {
   name: "@poilabs-dev/vd-navigation-sdk-plugin",
-  version: "1.0.17",
+  version: "1.0.18",
 };
 
 module.exports = createRunOncePlugin(
