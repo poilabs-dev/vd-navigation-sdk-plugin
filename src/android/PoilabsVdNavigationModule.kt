@@ -1,7 +1,5 @@
 package __PACKAGE_NAME__
 
-package com.curlyparantez.myapp
-
 import android.content.Intent
 import android.os.Handler
 import android.os.Looper
