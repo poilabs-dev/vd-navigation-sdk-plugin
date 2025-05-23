@@ -1,4 +1,4 @@
-package __PACKAGE_NAME__
+package __PACKAGE_NAME__;
 
 import androidx.annotation.NonNull;
 import com.facebook.react.ReactPackage;
