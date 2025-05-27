@@ -53,7 +53,6 @@ function withPoilabsPodfile(config) {
 
       let podText = fs.readFileSync(podfile, "utf8");
 
-      // Add use_frameworks! before use_react_native!
       if (!podText.includes("use_frameworks!")) {
         console.log("📝 iOS: Adding use_frameworks! to Podfile");
 
@@ -72,7 +71,6 @@ function withPoilabsPodfile(config) {
         }
       }
 
-      // Add PoilabsVdNavigation pod
       if (!podText.includes("pod 'PoilabsVdNavigation'")) {
         console.log("📝 iOS: Adding PoilabsVdNavigation pod");
 
@@ -110,7 +108,6 @@ function withPoilabsNativeModules(config) {
       const root = modConfig.modRequest.projectRoot;
       const projectName = modConfig.modRequest.projectName || "PoilabsApp";
 
-      // Create Swift manager file
       const managerSwiftFile = path.join(
         root,
         "ios",
@@ -128,56 +125,30 @@ import CoreLocation
     private var navigationController: UIViewController?
     
     @objc public func showPoilabsVdNavigation() {
-        print("🟢 showPoilabsVdNavigation called in Swift")
         
         let appId = UserDefaults.standard.string(forKey: "poilabs_app_id") ?? "APPLICATION_ID"
         let secret = UserDefaults.standard.string(forKey: "poilabs_app_secret") ?? "APPLICATION_SECRET"
         let uniqueId = UserDefaults.standard.string(forKey: "poilabs_unique_id") ?? "UNIQUE_ID"
         
-        print("🟢 Using credentials: \(appId), \(secret), \(uniqueId)")
-        
-        // SDK'yı basitçe başlat
         let navigationUI = PoilabsVdNavigationUI(withApplicationID: appId,
                              withApplicationSecret: secret,
                              withUniqueIdentifier: uniqueId) { [weak self] controller in
             
-            print("🟢 Controller received, saving and presenting")
             self?.navigationController = controller
             
-            // SDK'nın içyapısını anlamak için controller'ı inceleyelim
-            print("🔍 Controller class: \(type(of: controller))")
-            
-            // Delegate ayarlamayı deneyelim - farklı olası yolları
             if let navController = controller as? UINavigationController {
-                print("🔍 Controller is a UINavigationController")
                 if let topVC = navController.topViewController {
-                    print("🔍 Top view controller class: \(type(of: topVC))")
-                    
-                    // Reflection kullanarak delegate property'sini bulmayı deneyelim
                     let mirror = Mirror(reflecting: topVC)
-                    for child in mirror.children {
-                        if child.label == "delegate" {
-                            print("🟢 Found delegate property")
-                        }
-                    }
-                    
-                    // Doğrudan property atamayı deneyelim
                     if let sdkVC = topVC as? NSObject {
-                        // KVC yöntemi ile property atama
                         let selectorName = "setDelegate:"
                         let selector = NSSelectorFromString(selectorName)
                         if sdkVC.responds(to: selector) {
-                            print("🟢 Setting delegate using selector: \(selectorName)")
                             sdkVC.perform(selector, with: self)
                         } else {
-                            print("⚠️ Controller does not respond to \(selectorName)")
-                            
-                            // Alternatif olarak, diğer olası delegate setter metotlarını deneyin
                             let possibleSelectors = ["setNavigationDelegate:", "setVdDelegate:", "setLocationDelegate:"]
                             for sel in possibleSelectors {
                                 let altSelector = NSSelectorFromString(sel)
                                 if sdkVC.responds(to: altSelector) {
-                                    print("🟢 Found alternative delegate setter: \(sel)")
                                     sdkVC.perform(altSelector, with: self)
                                     break
                                 }
@@ -195,17 +166,12 @@ import CoreLocation
         }
     }
     
-    // PoilabsVdNavigationDelegate protokolünün metodu
     func poilabsVdNavigation(didUpdate userLocation: CLLocationCoordinate2D) {
-        print("📍 REAL LOCATION from SDK: \(userLocation.latitude), \(userLocation.longitude)")
-        
-        // UserDefaults'a konum bilgisini kaydet
         UserDefaults.standard.set(userLocation.latitude, forKey: "poilabs_location_latitude")
         UserDefaults.standard.set(userLocation.longitude, forKey: "poilabs_location_longitude") 
         UserDefaults.standard.set(true, forKey: "poilabs_has_location")
         UserDefaults.standard.synchronize()
         
-        // Notification gönder
         NotificationCenter.default.post(
             name: NSNotification.Name("PoilabsLocationUpdated"),
             object: nil
@@ -214,12 +180,8 @@ import CoreLocation
 }      
 `;
         fs.writeFileSync(managerSwiftFile, swiftContent);
-        console.log(
-          `✅ iOS: Created PoilabsVdNavigationManager.swift at ${managerSwiftFile}`
-        );
       }
 
-      // Create bridge header file
       const bridgeHeaderFile = path.join(
         root,
         "ios",
@@ -238,12 +200,8 @@ import CoreLocation
 #endif
 `;
         fs.writeFileSync(bridgeHeaderFile, headerContent);
-        console.log(
-          `✅ iOS: Created PoilabsNavigationBridge.h at ${bridgeHeaderFile}`
-        );
       }
 
-      // Create bridge implementation file
       const bridgeImplFile = path.join(
         root,
         "ios",
@@ -273,19 +231,13 @@ RCT_EXPORT_METHOD(showPoilabsVdNavigation) {
 @end
 `;
         fs.writeFileSync(bridgeImplFile, implContent);
-        console.log(
-          `✅ iOS: Created PoilabsNavigationBridge.m at ${bridgeImplFile}`
-        );
       }
 
-      // Create module files
       const moduleDir = path.join(root, "ios", projectName, "PoilabsModule");
       if (!fs.existsSync(moduleDir)) {
         fs.mkdirSync(moduleDir, { recursive: true });
-        console.log(`✅ iOS: Created PoilabsModule directory at ${moduleDir}`);
       }
 
-      // Copy native module files from the plugin
       const sourceDir = path.join(
         root,
         "node_modules/@poilabs-dev/vd-navigation-sdk-plugin/src/ios"
@@ -303,10 +255,7 @@ RCT_EXPORT_METHOD(showPoilabsVdNavigation) {
         if (fs.existsSync(sourcePath)) {
           const content = fs.readFileSync(sourcePath, "utf8");
           fs.writeFileSync(destPath, content, "utf8");
-          console.log(`✅ iOS: Created ${file} at ${destPath}`);
         } else {
-          console.log(`⚠️ iOS: Source file not found at ${sourcePath}`);
-          // Create default implementation if source doesn't exist
           if (file.endsWith(".h")) {
             const headerContent = `
 #ifndef ${file.replace(".h", "")}_h
@@ -320,7 +269,6 @@ RCT_EXPORT_METHOD(showPoilabsVdNavigation) {
 #endif
 `;
             fs.writeFileSync(destPath, headerContent, "utf8");
-            console.log(`✅ iOS: Created default ${file} at ${destPath}`);
           } else if (file.endsWith(".m")) {
             const implContent = `
 #import "PoilabsVdNavigationModule.h"
@@ -339,7 +287,6 @@ RCT_EXPORT_METHOD(initialize:(NSString *)applicationId
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 {
-  // Store credentials for later use
   resolve(@(YES));
 }
 
@@ -367,12 +314,10 @@ RCT_EXPORT_METHOD(getUserLocation:(RCTPromiseResolveBlock)resolve
 @end
 `;
             fs.writeFileSync(destPath, implContent, "utf8");
-            console.log(`✅ iOS: Created default ${file} at ${destPath}`);
           }
         }
       });
 
-      console.log("✅ iOS: Native bridge files created successfully");
       return modConfig;
     },
   ]);

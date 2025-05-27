@@ -19,10 +19,6 @@ const ANDROID_PERMISSIONS = [
 
 function withPoilabsManifest(config) {
   return withAndroidManifest(config, (mod) => {
-    console.log(
-      "📝 Android: Adding required permissions to AndroidManifest.xml"
-    );
-
     const { manifest } = mod.modResults;
     const permissions = manifest["uses-permission"] || [];
 
@@ -33,9 +29,6 @@ function withPoilabsManifest(config) {
     });
 
     manifest["uses-permission"] = permissions;
-    console.log(
-      "✅ Android: All required permissions added to AndroidManifest.xml"
-    );
 
     return mod;
   });
@@ -50,7 +43,6 @@ function withPoilabsGradle(config, { jitpackToken }) {
       const buildScript = path.join(root, "android/build.gradle");
 
       if (!fs.existsSync(buildScript)) {
-        console.log("❌ Android: build.gradle not found at", buildScript);
         return modConfig;
       }
 
@@ -81,7 +73,6 @@ function withPoilabsGradle(config, { jitpackToken }) {
       const appGradle = path.join(root, "android/app/build.gradle");
 
       if (!fs.existsSync(appGradle)) {
-        console.log("❌ Android: app/build.gradle not found at", appGradle);
         return modConfig;
       }
 
@@ -98,29 +89,23 @@ function withPoilabsGradle(config, { jitpackToken }) {
       );
 
       fs.writeFileSync(appGradle, appText);
-      console.log("✅ Android: Added SDK dependency to app build.gradle");
 
       const gradlePropertiesPath = path.join(root, "android/gradle.properties");
-      
+
       if (fs.existsSync(gradlePropertiesPath)) {
         let gradleProps = fs.readFileSync(gradlePropertiesPath, "utf8");
-        
+
         if (!gradleProps.includes("android.enableJetifier=")) {
-          gradleProps += "\n# Enable Jetifier for support library compatibility\nandroid.enableJetifier=true\n";
+          gradleProps +=
+            "\n# Enable Jetifier for support library compatibility\nandroid.enableJetifier=true\n";
           fs.writeFileSync(gradlePropertiesPath, gradleProps);
-          console.log("✅ Android: Enabled Jetifier in gradle.properties");
         } else if (!gradleProps.includes("android.enableJetifier=true")) {
           gradleProps = gradleProps.replace(
-            /android\.enableJetifier=false/g, 
+            /android\.enableJetifier=false/g,
             "android.enableJetifier=true"
           );
           fs.writeFileSync(gradlePropertiesPath, gradleProps);
-          console.log("✅ Android: Updated Jetifier setting to true in gradle.properties");
-        } else {
-          console.log("ℹ️ Android: Jetifier is already enabled in gradle.properties");
         }
-      } else {
-        console.log("❌ Android: gradle.properties not found at", gradlePropertiesPath);
       }
 
       return modConfig;
@@ -136,20 +121,16 @@ function withPoilabsNativeModules(config) {
         config.android?.package || config.android?.packageName || config.slug;
 
       if (!pkgName) {
-        console.log("❌ Android: No package name found in app.json");
         return modConfig;
       }
 
-      console.log("📝 Android: Creating native module files");
       const pkgPath = pkgName.replace(/\./g, "/");
       const dest = path.join(root, "android/app/src/main/java", pkgPath);
 
       if (!fs.existsSync(dest)) {
         fs.mkdirSync(dest, { recursive: true });
-        console.log("✅ Android: Created destination directory at", dest);
       }
 
-      // Copy module files from node_modules
       const sourceDir = path.join(
         root,
         "node_modules/@poilabs-dev/vd-navigation-sdk-plugin/src/android"
@@ -168,9 +149,6 @@ function withPoilabsNativeModules(config) {
           let content = fs.readFileSync(sourcePath, "utf8");
           content = content.replace(/__PACKAGE_NAME__/g, pkgName);
           fs.writeFileSync(destPath, content, "utf8");
-          console.log(`✅ Android: Created ${file} at ${destPath}`);
-        } else {
-          console.log(`❌ Android: Source file not found: ${sourcePath}`);
         }
       });
 

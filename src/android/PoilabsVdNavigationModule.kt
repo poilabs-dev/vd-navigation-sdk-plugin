@@ -46,7 +46,6 @@ class PoilabsVdNavigationModule internal constructor(context: ReactApplicationCo
             hasRealLocation = false
             
             currentActivity?.let { activity ->
-                Log.d(TAG, "Initializing SDK with: $applicationId, $secretKey, $uniqueId")
                 
                 val locationCallback = object : LocationCallback {
                     override fun onLocation(
@@ -54,18 +53,12 @@ class PoilabsVdNavigationModule internal constructor(context: ReactApplicationCo
                         longitude: Double,
                         floorLevel: Int?,
                         floorName: String?
-                    ) {
-                        Log.d(TAG, "📍 REAL LOCATION from SDK: $latitude, $longitude, floor: $floorLevel ($floorName)")
-                        
+                    ) { 
                         lastLatitude = latitude
                         lastLongitude = longitude
                         lastFloorLevel = floorLevel
                         lastFloorName = floorName
                         hasRealLocation = true
-                    }
-                    
-                    override fun onStatusChanged(status: PLPStatus) {
-                        Log.d(TAG, "Status changed: $status")
                     }
                 }
                 
@@ -80,12 +73,10 @@ class PoilabsVdNavigationModule internal constructor(context: ReactApplicationCo
                         vdResponseListener = object : VDResponseListener {
                             override fun onSuccess() {
                                 PoiManager.setUniqueId(uniqueId)
-                                Log.d(TAG, "✅ SDK initialization successful")
                                 promise.resolve(true)
                             }
                             
                             override fun onFail(throwable: Throwable?) {
-                                Log.e(TAG, "❌ SDK initialization failed: ${throwable?.message}")
                                 throwable?.printStackTrace()
                                 promise.reject("INIT_FAILED", throwable?.message, throwable)
                             }
@@ -102,12 +93,10 @@ class PoilabsVdNavigationModule internal constructor(context: ReactApplicationCo
                         vdResponseListener = object : VDResponseListener {
                             override fun onSuccess() {
                                 PoiManager.setUniqueId(uniqueId)
-                                Log.d(TAG, "✅ SDK initialization successful")
                                 promise.resolve(true)
                             }
                             
                             override fun onFail(throwable: Throwable?) {
-                                Log.e(TAG, "❌ SDK initialization failed: ${throwable?.message}")
                                 throwable?.printStackTrace()
                                 promise.reject("INIT_FAILED", throwable?.message, throwable)
                             }
@@ -119,7 +108,6 @@ class PoilabsVdNavigationModule internal constructor(context: ReactApplicationCo
                 promise.reject("ACTIVITY_NULL", "Activity is null")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Exception in initialize: ${e.message}")
             e.printStackTrace()
             promise.reject("INIT_EXCEPTION", e.message, e)
         }
@@ -129,23 +117,14 @@ class PoilabsVdNavigationModule internal constructor(context: ReactApplicationCo
     fun showPoilabsVdNavigation(promise: Promise) {
         try {
             currentActivity?.let { activity ->
-                Log.d(TAG, "Starting navigation activity")
-                
                 Intent(activity, PoiVdNavigationActivity::class.java).also {
                     activity.startActivity(it)
                     promise.resolve(true)
                 }
-                
-                Handler(Looper.getMainLooper()).postDelayed({
-                    if (!hasRealLocation) {
-                        Log.d(TAG, "⚠️ No real location after 10 seconds, using simulated location")
-                    }
-                }, 10000)
             } ?: run {
                 promise.reject("ACTIVITY_NULL", "Activity is null")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Exception in showPoilabsVdNavigation: ${e.message}")
             promise.reject("NAVIGATION_EXCEPTION", e.message, e)
         }
     }
@@ -159,7 +138,6 @@ class PoilabsVdNavigationModule internal constructor(context: ReactApplicationCo
                 lastFloorLevel?.let { putInt("floorLevel", it) } ?: putNull("floorLevel")
             }
             
-            Log.d(TAG, "✅ Returning location: $lastLatitude, $lastLongitude, floor: $lastFloorLevel ($lastFloorName)")
             promise.resolve(map)
         } else {
             val map = Arguments.createMap().apply {
@@ -167,8 +145,7 @@ class PoilabsVdNavigationModule internal constructor(context: ReactApplicationCo
                 putDouble("longitude", 0.0)
                 putNull("floorLevel")
             }
-            
-            Log.d(TAG, "⚠️ No location data yet")
+
             promise.resolve(map)
         }
     }
@@ -177,10 +154,8 @@ class PoilabsVdNavigationModule internal constructor(context: ReactApplicationCo
     fun updateUniqueId(uniqueId: String, promise: Promise) {
         try {
             PoiManager.setUniqueId(uniqueId)
-            Log.d(TAG, "✅ Updated unique ID: $uniqueId")
             promise.resolve(true)
         } catch (e: Exception) {
-            Log.e(TAG, "Exception in updateUniqueId: ${e.message}")
             promise.reject("UPDATE_UNIQUEID_EXCEPTION", e.message, e)
         }
     }
