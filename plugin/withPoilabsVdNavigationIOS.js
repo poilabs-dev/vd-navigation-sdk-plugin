@@ -40,60 +40,58 @@ function withPoilabsPodfile(config) {
   return withDangerousMod(config, [
     "ios",
     async (modConfig) => {
-      console.log("📝 iOS: Modifying Podfile");
       const podfile = path.join(
         modConfig.modRequest.projectRoot,
         "ios/Podfile"
       );
 
       if (!fs.existsSync(podfile)) {
-        console.log("❌ iOS: Podfile not found at", podfile);
         return modConfig;
       }
 
       let podText = fs.readFileSync(podfile, "utf8");
 
       if (!podText.includes("use_frameworks!")) {
-        console.log("📝 iOS: Adding use_frameworks! to Podfile");
-
         if (podText.includes("use_react_native!")) {
           podText = podText.replace(
             /use_react_native!/,
-            "use_frameworks!\nuse_react_native!"
+            "use_frameworks! :linkage => :static\nuse_react_native!"
           );
         } else if (podText.includes("platform :ios")) {
           podText = podText.replace(
             /platform :ios/,
-            "use_frameworks!\nplatform :ios"
+            "use_frameworks! :linkage => :static\nplatform :ios"
           );
         } else {
-          podText = "use_frameworks!\n" + podText;
+          podText = "use_frameworks! :linkage => :static\n" + podText;
         }
+      } else if (podText.includes("use_frameworks!") && !podText.includes(":linkage => :static")) {
+        podText = podText.replace(
+          /use_frameworks!/g,
+          "use_frameworks! :linkage => :static"
+        );
       }
 
       if (!podText.includes("pod 'PoilabsVdNavigation'")) {
-        console.log("📝 iOS: Adding PoilabsVdNavigation pod");
-
         if (podText.includes("target ")) {
           podText = podText.replace(
             /target ['"][^'"]+['"] do/,
-            (m) => `${m}\n  pod 'PoilabsVdNavigation', '7.1.0'`
+            (m) => `${m}\n  pod 'PoilabsVdNavigation'`
           );
         } else {
           const lastEndIndex = podText.lastIndexOf("end");
           if (lastEndIndex !== -1) {
             podText =
               podText.substring(0, lastEndIndex) +
-              "  pod 'PoilabsVdNavigation', '7.1.0'\n" +
+              "  pod 'PoilabsVdNavigation'" +
               podText.substring(lastEndIndex);
           } else {
-            podText += "\npod 'PoilabsVdNavigation', '7.1.0'\n";
+            podText += "\npod 'PoilabsVdNavigation'";
           }
         }
       }
 
       fs.writeFileSync(podfile, podText);
-      console.log("✅ iOS: Podfile modified successfully");
 
       return modConfig;
     },
@@ -104,179 +102,66 @@ function withPoilabsNativeModules(config) {
   return withDangerousMod(config, [
     "ios",
     async (modConfig) => {
-      console.log("📝 iOS: Creating native bridge files");
       const root = modConfig.modRequest.projectRoot;
       const projectName = modConfig.modRequest.projectName || "PoilabsApp";
-
-      const managerSwiftFile = path.join(
-        root,
-        "ios",
-        "PoilabsVdNavigationManager.swift"
-      );
-      if (!fs.existsSync(managerSwiftFile)) {
-        const swiftContent = `
-import UIKit
-import PoilabsVdNavigationUI
-import CoreLocation
-
-@objc class PoilabsVdNavigationManager: NSObject, PoilabsVdNavigationDelegate {
-    
-    // Controller referansını tutmak için bir property
-    private var navigationController: UIViewController?
-    
-    @objc public func showPoilabsVdNavigation() {
-        
-        let appId = UserDefaults.standard.string(forKey: "poilabs_app_id") ?? "APPLICATION_ID"
-        let secret = UserDefaults.standard.string(forKey: "poilabs_app_secret") ?? "APPLICATION_SECRET"
-        let uniqueId = UserDefaults.standard.string(forKey: "poilabs_unique_id") ?? "UNIQUE_ID"
-        
-        let navigationUI = PoilabsVdNavigationUI(withApplicationID: appId,
-                             withApplicationSecret: secret,
-                             withUniqueIdentifier: uniqueId) { [weak self] controller in
-            
-            self?.navigationController = controller
-            
-            if let navController = controller as? UINavigationController {
-                if let topVC = navController.topViewController {
-                    let mirror = Mirror(reflecting: topVC)
-                    if let sdkVC = topVC as? NSObject {
-                        let selectorName = "setDelegate:"
-                        let selector = NSSelectorFromString(selectorName)
-                        if sdkVC.responds(to: selector) {
-                            sdkVC.perform(selector, with: self)
-                        } else {
-                            let possibleSelectors = ["setNavigationDelegate:", "setVdDelegate:", "setLocationDelegate:"]
-                            for sel in possibleSelectors {
-                                let altSelector = NSSelectorFromString(sel)
-                                if sdkVC.responds(to: altSelector) {
-                                    sdkVC.perform(altSelector, with: self)
-                                    break
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            
-            DispatchQueue.main.async {
-                let keyWindow = UIApplication.shared.windows.first(where: { $0.isKeyWindow }) ?? UIApplication.shared.windows.first
-                let topController = keyWindow?.rootViewController
-                topController?.present(controller, animated: true, completion: nil)
-            }
-        }
-    }
-    
-    func poilabsVdNavigation(didUpdate userLocation: CLLocationCoordinate2D) {
-        UserDefaults.standard.set(userLocation.latitude, forKey: "poilabs_location_latitude")
-        UserDefaults.standard.set(userLocation.longitude, forKey: "poilabs_location_longitude") 
-        UserDefaults.standard.set(true, forKey: "poilabs_has_location")
-        UserDefaults.standard.synchronize()
-        
-        NotificationCenter.default.post(
-            name: NSNotification.Name("PoilabsLocationUpdated"),
-            object: nil
-        )
-    }
-}      
-`;
-        fs.writeFileSync(managerSwiftFile, swiftContent);
-      }
-
-      const bridgeHeaderFile = path.join(
-        root,
-        "ios",
-        "PoilabsNavigationBridge.h"
-      );
-      if (!fs.existsSync(bridgeHeaderFile)) {
-        const headerContent = `
-#ifndef PoilabsNavigationBridge_h
-#define PoilabsNavigationBridge_h
-#import <React/RCTBridgeModule.h>
-        
-@interface PoilabsNavigationBridge : NSObject <RCTBridgeModule>
--(void) showPoilabsVdNavigation;
-@end
-        
-#endif
-`;
-        fs.writeFileSync(bridgeHeaderFile, headerContent);
-      }
-
-      const bridgeImplFile = path.join(
-        root,
-        "ios",
-        "PoilabsNavigationBridge.m"
-      );
-      if (!fs.existsSync(bridgeImplFile)) {
-        const implContent = `
-#import <Foundation/Foundation.h>
-#import "PoilabsNavigationBridge.h"
-#import "${projectName}-Swift.h"
-
-@implementation PoilabsNavigationBridge
-
-RCT_EXPORT_MODULE(PoilabsNavigationBridge);
-
-RCT_EXPORT_METHOD(showPoilabsVdNavigation) {
-  
-  dispatch_async(dispatch_get_main_queue(), ^{
-    
-    PoilabsVdNavigationManager* vdManager = [[PoilabsVdNavigationManager alloc] init];
-    if (vdManager) {
-      [vdManager showPoilabsVdNavigation];
-    }
-  });
-}
-
-@end
-`;
-        fs.writeFileSync(bridgeImplFile, implContent);
-      }
 
       const moduleDir = path.join(root, "ios", projectName, "PoilabsModule");
       if (!fs.existsSync(moduleDir)) {
         fs.mkdirSync(moduleDir, { recursive: true });
       }
 
-      const sourceDir = path.join(
-        root,
-        "node_modules/@poilabs-dev/vd-navigation-sdk-plugin/src/ios"
+      const managerSwiftFile = path.join(
+        moduleDir,
+        "PoilabsVdNavigationManager.swift"
       );
+      if (!fs.existsSync(managerSwiftFile)) {
+        const swiftContent = `import UIKit
+import PoilabsVdNavigationUI
 
-      const moduleFiles = [
-        "PoilabsVdNavigationModule.h",
-        "PoilabsVdNavigationModule.m",
-      ];
+@objc class PoilabsVdNavigationManager: NSObject {
+    @objc func showPoilabsVdNavigation() {
+        let appId = UserDefaults.standard.string(forKey: "poilabs_app_id") ?? "APPLICATION_ID"
+        let secret = UserDefaults.standard.string(forKey: "poilabs_app_secret") ?? "APPLICATION_SECRET"
+        let uniqueIdentifier = UserDefaults.standard.string(forKey: "poilabs_unique_id") ?? "UNIQUE_ID"
+        
+        let _ = PoilabsVdNavigationUI(withApplicationID: appId, 
+                                    withApplicationSecret: secret, 
+                                    withUniqueIdentifier: uniqueIdentifier) { controller in
+            DispatchQueue.main.async {
+                let keyWindow = UIApplication.shared.windows.first(where: { $0.isKeyWindow }) ?? UIApplication.shared.windows.first
+                let topController = keyWindow?.rootViewController
+                topController?.show(controller, sender: self)
+            }
+        }
+    }
+}`;
+        fs.writeFileSync(managerSwiftFile, swiftContent);
+      }
 
-      moduleFiles.forEach((file) => {
-        const sourcePath = path.join(sourceDir, file);
-        const destPath = path.join(moduleDir, file);
-
-        if (fs.existsSync(sourcePath)) {
-          const content = fs.readFileSync(sourcePath, "utf8");
-          fs.writeFileSync(destPath, content, "utf8");
-        } else {
-          if (file.endsWith(".h")) {
-            const headerContent = `
-#ifndef ${file.replace(".h", "")}_h
-#define ${file.replace(".h", "")}_h
-
-#import <React/RCTBridgeModule.h>
+      const moduleHeaderFile = path.join(
+        moduleDir,
+        "PoilabsVdNavigationModule.h"
+      );
+      const headerContent = `#import <React/RCTBridgeModule.h>
 
 @interface PoilabsVdNavigationModule : NSObject <RCTBridgeModule>
-@end
+@end`;
+      fs.writeFileSync(moduleHeaderFile, headerContent);
 
-#endif
-`;
-            fs.writeFileSync(destPath, headerContent, "utf8");
-          } else if (file.endsWith(".m")) {
-            const implContent = `
-#import "PoilabsVdNavigationModule.h"
-#import <PoilabsVdNavigationUI/PoilabsVdNavigationUI.h>
+      const moduleImplFile = path.join(
+        moduleDir,
+        "PoilabsVdNavigationModule.m"
+      );
+      const implContent = `#import "PoilabsVdNavigationModule.h"
+#import "${projectName}-Swift.h"
 
 @implementation PoilabsVdNavigationModule
 
 RCT_EXPORT_MODULE(PoilabsVdNavigationModule);
+
++ (BOOL)requiresMainQueueSetup {
+    return YES;
+}
 
 RCT_EXPORT_METHOD(initialize:(NSString *)applicationId
                   secretKey:(NSString *)applicationSecretKey
@@ -287,36 +172,46 @@ RCT_EXPORT_METHOD(initialize:(NSString *)applicationId
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 {
-  resolve(@(YES));
+    [[NSUserDefaults standardUserDefaults] setObject:applicationId forKey:@"poilabs_app_id"];
+    [[NSUserDefaults standardUserDefaults] setObject:applicationSecretKey forKey:@"poilabs_app_secret"];
+    [[NSUserDefaults standardUserDefaults] setObject:uniqueId forKey:@"poilabs_unique_id"];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+    
+    resolve(@(YES));
 }
 
 RCT_EXPORT_METHOD(showPoilabsVdNavigation:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 {
-  dispatch_async(dispatch_get_main_queue(), ^{
-    PoilabsVdNavigationManager* vdManager = [[PoilabsVdNavigationManager alloc] init];
-    [vdManager showPoilabsVdNavigation];
-    resolve(@(YES));
-  });
+    dispatch_async(dispatch_get_main_queue(), ^{
+        PoilabsVdNavigationManager* vdManager = [[PoilabsVdNavigationManager alloc] init];
+        [vdManager showPoilabsVdNavigation];
+        resolve(@(YES));
+    });
 }
 
 RCT_EXPORT_METHOD(getUserLocation:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 {
-  NSDictionary *location = @{
-    @"latitude": @(0.0),
-    @"longitude": @(0.0),
-    @"floorLevel": [NSNull null]
-  };
-  resolve(location);
+    NSDictionary *location = @{
+        @"latitude": @(0.0),
+        @"longitude": @(0.0),
+        @"floorLevel": [NSNull null]
+    };
+    resolve(location);
 }
 
-@end
-`;
-            fs.writeFileSync(destPath, implContent, "utf8");
-          }
-        }
-      });
+RCT_EXPORT_METHOD(updateUniqueId:(NSString *)uniqueId
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+{
+    [[NSUserDefaults standardUserDefaults] setObject:uniqueId forKey:@"poilabs_unique_id"];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+    resolve(@(YES));
+}
+
+@end`;
+      fs.writeFileSync(moduleImplFile, implContent);
 
       return modConfig;
     },

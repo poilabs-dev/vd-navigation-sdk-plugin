@@ -90,12 +90,12 @@ For iOS, you need to ensure the plugin files are properly included in your Xcode
    - `PoilabsVdNavigationManager.swift`
    - `PoilabsNavigationBridge.h`
    - `PoilabsNavigationBridge.m`
-   - `PoilabsModule/PoilabsVdNavigationModule.h`
-   - `PoilabsModule/PoilabsVdNavigationModule.m`
 
 3. If files are missing, you may need to manually add them from the iOS directory
 
 4. Ensure the Swift bridging header includes React and PoilabsVdNavigation
+
+5. Upload pods: cd ios && pod install && cd ..
 
 Then build and run your iOS project:
 
