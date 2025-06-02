@@ -1,6 +1,6 @@
 {
   "name": "@poilabs-dev/vd-navigation-sdk-plugin",
-  "version": "1.0.24",
+  "version": "1.0.26",
   "description": "Official Expo Config Plugin for integrating the Poilabs Visually Disabled Navigation SDK",
   "main": "index.js",
   "types": "index.d.ts",
