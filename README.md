@@ -95,7 +95,11 @@ For iOS, you need to ensure the plugin files are properly included in your Xcode
 
 4. Ensure the Swift bridging header includes React and PoilabsVdNavigation
 
-5. Upload pods: cd ios && pod install && cd ..
+## 🚀 Upload Pods
+
+```bash
+cd ios && pod install && cd ..
+```
 
 Then build and run your iOS project:
 

@@ -40,10 +40,7 @@ function withPoilabsPodfile(config) {
   return withDangerousMod(config, [
     "ios",
     async (modConfig) => {
-      const podfile = path.join(
-        modConfig.modRequest.projectRoot,
-        "ios/Podfile"
-      );
+      const podfile = path.join(modConfig.modRequest.projectRoot, "ios", "Podfile");
 
       if (!fs.existsSync(podfile)) {
         return modConfig;
@@ -51,52 +48,42 @@ function withPoilabsPodfile(config) {
 
       let podText = fs.readFileSync(podfile, "utf8");
 
-      if (!podText.includes("use_frameworks!")) {
-        if (podText.includes("use_react_native!")) {
+      if (!podText.match(/use_frameworks! *(:linkage *=> *:static)?/)) {
+        const match = podText.match(/(^|\n)(\s*)use_react_native!/)
+        if (match) {
           podText = podText.replace(
-            /use_react_native!/,
-            "use_frameworks! :linkage => :static\nuse_react_native!"
-          );
-        } else if (podText.includes("platform :ios")) {
-          podText = podText.replace(
-            /platform :ios/,
-            "use_frameworks! :linkage => :static\nplatform :ios"
+            /(^|\n)(\s*)use_react_native!/,
+            `\nuse_frameworks! :linkage => :static\n$2use_react_native!`
           );
         } else {
-          podText = "use_frameworks! :linkage => :static\n" + podText;
-        }
-      } else if (podText.includes("use_frameworks!") && !podText.includes(":linkage => :static")) {
-        podText = podText.replace(
-          /use_frameworks!/g,
-          "use_frameworks! :linkage => :static"
-        );
-      }
-
-      if (!podText.includes("pod 'PoilabsVdNavigation'")) {
-        if (podText.includes("target ")) {
-          podText = podText.replace(
-            /target ['"][^'"]+['"] do/,
-            (m) => `${m}\n  pod 'PoilabsVdNavigation'`
-          );
-        } else {
-          const lastEndIndex = podText.lastIndexOf("end");
-          if (lastEndIndex !== -1) {
-            podText =
-              podText.substring(0, lastEndIndex) +
-              "  pod 'PoilabsVdNavigation'" +
-              podText.substring(lastEndIndex);
+          const platformMatch = podText.match(/(^|\n)(\s*)platform :ios.*\n/);
+          if (platformMatch) {
+            podText = podText.replace(
+              platformMatch[0],
+              `${platformMatch[0]}use_frameworks! :linkage => :static\n`
+            );
           } else {
-            podText += "\npod 'PoilabsVdNavigation'";
+            podText = `use_frameworks! :linkage => :static\n${podText}`;
           }
         }
       }
 
-      fs.writeFileSync(podfile, podText);
+      if (!podText.includes(`pod 'PoilabsVdNavigation'`)) {
+        const targetMatch = podText.match(/target ['"][^'"]+['"] do/);
+        if (targetMatch) {
+          podText = podText.replace(
+            targetMatch[0],
+            `${targetMatch[0]}\n  pod 'PoilabsVdNavigation'`
+          );
+        }
+      }
 
+      fs.writeFileSync(podfile, podText, "utf8");
       return modConfig;
     },
   ]);
 }
+
 
 function withPoilabsNativeModules(config) {
   return withDangerousMod(config, [
