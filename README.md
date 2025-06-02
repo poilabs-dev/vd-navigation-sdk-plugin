@@ -137,6 +137,8 @@ export default function App() {
           language: 'en', // or 'tr' for Turkish
         });
 
+        await showPoilabsVdNavigation();
+
       } catch (error: any) {
         console.error("Error", error)
       }
